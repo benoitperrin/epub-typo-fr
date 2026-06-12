@@ -58,6 +58,10 @@ def clean_opf(opf, titre, auteur, note, ident):
     return opf
 
 
+def new_identifier(titre, ident):
+    return ident or 'urn:epub-typo-fr:' + re.sub(r'\W+', '-', (titre or 'livre').lower()).strip('-')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('infile'); ap.add_argument('outfile')
@@ -65,6 +69,7 @@ def main():
     ap.add_argument('--note', default='Texte du domaine public ; typographie française et corrections OCR par epub-typo-fr.')
     ap.add_argument('--id', default='')
     args = ap.parse_args()
+    new_id = new_identifier(args.titre, args.id)
     zin = zipfile.ZipFile(args.infile)
     out = zipfile.ZipFile(args.outfile, 'w')
     out.writestr(zipfile.ZipInfo('mimetype'), 'application/epub+zip',
@@ -73,9 +78,16 @@ def main():
         if item.filename == 'mimetype':
             continue
         data = zin.read(item.filename)
-        if item.filename.lower().endswith('.opf'):
+        low = item.filename.lower()
+        if low.endswith('.opf'):
             data = clean_opf(data.decode('utf-8', 'replace'),
                              args.titre, args.auteur, args.note, args.id).encode('utf-8')
+        elif low.endswith('.ncx'):
+            # le dtb:uid du NCX doit matcher l'identifiant OPF (epubcheck NCX-001)
+            t = data.decode('utf-8', 'replace')
+            t = re.sub(r'(<meta\s+name="dtb:uid"\s+content=")[^"]*(")',
+                       r'\g<1>' + new_id + r'\g<2>', t)
+            data = t.encode('utf-8')
         info = zipfile.ZipInfo(item.filename, date_time=item.date_time)
         info.compress_type = zipfile.ZIP_DEFLATED
         out.writestr(info, data)
