@@ -34,11 +34,25 @@ Chaîne `epub-typo-fr` (https://github.com/benoitperrin/epub-typo-fr) :
    préservés — ce sont des choix de l'autrice, pas des erreurs.
 5. **Validation** : chaque EPUB passe `epubcheck` sans erreur.
 
+**753 corrections** au total appliquées sur les 13 titres, toutes tracées dans les diffs HTML. Tous passent epubcheck sans erreur.
+
 ## Les 13 titres
 
-| # | Titre | Diff de relecture |
-|---|-------|-------------------|
-<!-- rempli par finalize -->
+| Titre | Corrections | Diff |
+|-------|-------------|------|
+| Un bon petit diable | 51 | `Comtesse-de-Segur-un-bon-petit-diable.diff.html` |
+| Nouveaux contes de fées | 104 | `Comtesse-de-Segur-nouveaux-contes-de-fees.diff.html` |
+| Pauvre Blaise | 15 | `Comtesse-de-Segur-pauvre-blaise.diff.html` |
+| Les vacances | 2 | `Comtesse-de-Segur-les-vacances.diff.html` |
+| Les petites filles modèles | 2 | `Comtesse-de-Segur-les-petites-filles-modeles.diff.html` |
+| Les Mémoires d'un âne | 44 | `Comtesse-de-Segur-les-memoires-d-un-ane.diff.html` |
+| Les malheurs de Sophie | 4 | `Comtesse-de-Segur-les-malheurs-de-sophie.diff.html` |
+| Le Mauvais Génie | 21 | `Comtesse-de-Segur-le-mauvais-genie.diff.html` |
+| Les deux nigauds | 111 | `Comtesse-de-Segur-les-deux-nigauds.diff.html` |
+| Le Général Dourakine | 83 | `Comtesse-de-Segur-le-general-dourakine.diff.html` |
+| Jean qui grogne et Jean qui rit | 154 | `Comtesse-de-Segur-jean-qui-grogne-et-jean-qui-rit.diff.html` |
+| L'auberge de l'ange gardien | 66 | `Comtesse-de-Segur-l-auberge-de-l-ange-gardien.diff.html` |
+| François le Bossu | 96 | `Comtesse-de-Segur-francois-le-bossu.diff.html` |
 
 ## Vérifier les corrections
 
