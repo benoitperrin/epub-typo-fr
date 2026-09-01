@@ -90,6 +90,17 @@ check('fine: U+202F', fine,
       doc('<p>Quoi\u202f? Non\u202f! D\u00e9j\u00e0\u00a0!</p>'))
 check('a_grave off par défaut produit', f.Rules().a_grave, 'off')
 
+# fausses insécables (U+2008 PUNCTUATION SPACE, U+2009 THIN SPACE : sécables malgré leur nom)
+# → R4 doit les normaliser comme n'importe quelle espace sécable, en mode fine comme en mode nbsp
+check('R4 U+2008 normalisée (fine)', run('<p>Vraiment\u2008? Bon\u2009; Oui\u2008» «\u2008Là</p>', space_style='fine'),
+      doc('<p>Vraiment\u202f? Bon\u202f; Oui\u202f» «\u202fLà</p>'))
+check('R4 U+2008 normalisée (nbsp)', run('<p>Vraiment\u2008?</p>'),
+      doc('<p>Vraiment\u00a0?</p>'))
+check('R4 U+2007 (GL) respectée', run('<p>Vraiment\u2007?</p>', space_style='fine'),
+      doc('<p>Vraiment\u2007?</p>'))
+check('R4 autres sécables Unicode (U+2003, U+205F)', run('<p>Eh\u2003! Oh\u205f?</p>', space_style='fine'),
+      doc('<p>Eh\u202f! Oh\u202f?</p>'))
+
 # idempotence
 once = run("<p>- L'oeil du coeur... Quoi? «Etat»</p>")
 rules2 = f.Rules()

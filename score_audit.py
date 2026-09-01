@@ -64,14 +64,16 @@ def classify(rec):
             score += 40 * a_s / (a_s + a_c)
 
         p_n, p_s, p_0 = rec.get('punct_nbsp', 0), rec.get('punct_space', 0), rec.get('punct_none', 0)
-        tot_p = p_n + p_s + p_0
+        p_f = rec.get('punct_fakespace', 0)   # U+2008/U+2009 : sécables malgré leur nom
+        tot_p = p_n + p_s + p_0 + p_f
         if tot_p > 30:
-            if (p_s + p_0) / tot_p > 0.30:
+            if (p_s + p_0 + p_f) / tot_p > 0.30:
                 detail = []
                 if p_s: detail.append(f'{p_s} sécables')
+                if p_f: detail.append(f'{p_f} fausses insécables (U+2008/U+2009)')
                 if p_0: detail.append(f'{p_0} sans espace')
                 defects.append(f"insécables ponctuation manquantes : {' + '.join(detail)} / {tot_p}")
-                score += 35 * (p_s + p_0) / tot_p
+                score += 35 * (p_s + p_0 + p_f) / tot_p
                 if p_0 / tot_p > 0.5:
                     score += 15  # collé façon anglo = symptôme OCR/source EN
 

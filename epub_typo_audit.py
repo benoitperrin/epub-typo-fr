@@ -14,7 +14,11 @@ import sys, os, re, json, zipfile, html
 NBSP = ' '      # espace insécable
 NNBSP = ' '     # espace fine insécable
 THIN = ' '      # espace fine (sécable mais souvent utilisée comme fine)
-NBS_CLASS = '[   ]'
+# Ne compter comme insécables QUE les trois espaces de classe GL (UAX #14) : U+00A0, U+2007, U+202F.
+NBS_CLASS = '[\u00a0\u2007\u202f]'
+# Fausses insécables : sécables malgré leur nom (U+2008 PUNCTUATION SPACE, U+2009 THIN SPACE…) —
+# sans ce compteur, une ponctuation précédée de U+2008 n'entre dans aucune case (faux négatif silencieux).
+FAKE_NBS = '[\u2000-\u2006\u2008\u2009\u200a\u205f\u3000]'
 RSQUO = '’'     # apostrophe courbe
 LDQUO, RDQUO = '“', '”'
 EMDASH, ENDASH = '—', '–'
@@ -82,6 +86,8 @@ def text_metrics(t, m):
     m['punct_nbsp'] += len(re.findall(NBS_CLASS + r':', t))
     m['punct_space'] += len(re.findall(r'[' + LETTER + r')»] :', t))
     m['punct_none'] += len(re.findall(r'[' + LETTER + r']:(?![/0-9])', t))
+    # espace typographique d'apparence correcte mais sécable devant ! ? ; : »
+    m['punct_fakespace'] += len(re.findall(FAKE_NBS + r'[!?;:»]', t))
     # guillemets : espaces intérieures
     m['guil_in_nbsp'] += len(re.findall(r'«' + NBS_CLASS, t)) + len(re.findall(NBS_CLASS + r'»', t))
     m['guil_in_space'] += len(re.findall(r'« ', t)) + len(re.findall(r' »', t))
@@ -97,7 +103,7 @@ def audit_epub(path):
     m = dict.fromkeys([
         'chars','apos_straight','apos_curly','dq_straight','dq_curly',
         'guil_open','guil_close','nbsp','nnbsp','softhyphen','emdash','endash',
-        'ellipsis_char','ellipsis_dots','punct_nbsp','punct_space','punct_none',
+        'ellipsis_char','ellipsis_dots','punct_nbsp','punct_space','punct_none','punct_fakespace',
         'guil_in_nbsp','guil_in_space','guil_in_none','mojibake','lig_bad','lig_good',
         'caps_bad','caps_good','hyphen_residue',
         'dlg_emdash','dlg_endash','dlg_hyphen'], 0)

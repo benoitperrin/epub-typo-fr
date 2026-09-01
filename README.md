@@ -29,7 +29,7 @@ Une grande partie des EPUB français en circulation sont typographiquement cass�
 
 | Étape | Script | Nature |
 |---|---|---|
-| 1. Audit d'une bibliothèque | `epub_typo_audit.py` | déterministe — 27 métriques par livre |
+| 1. Audit d'une bibliothèque | `epub_typo_audit.py` | déterministe — 28 métriques par livre (dont les fausses insécables U+2008/U+2009) |
 | 2. Classement | `score_audit.py` | déterministe — classes A (rédhibitoire) / B (majeur) / C (mineur) / OK |
 | 3. Correction typographique | `epub_typo_fix.py` | déterministe — règles R1-R7, garde-fous stricts |
 | 4. Détection d'anomalies OCR | `ocr_anomalies.py` | déterministe — 12 détecteurs + lexique |

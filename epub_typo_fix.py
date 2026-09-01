@@ -28,8 +28,13 @@ import sys, os, re, html, zipfile, argparse, json
 from collections import Counter
 
 NBSP = '\u00a0'
-SP_CLASS = '[ \u00a0\u202f\u2009]'   # toute espace horizontale
-BRK_CLASS = '[ \u2009]'             # espaces sécables uniquement
+# Espaces : seules U+00A0, U+2007 et U+202F sont insécables (Line_Break = GL, UAX #14).
+# U+2008 PUNCTUATION SPACE et U+2009 THIN SPACE sont SÉCABLES malgré leur nom — toute
+# espace Unicode sécable doit être normalisable par R4 (fiche cadratin/docs/espaces-insecables-pieges.md).
+GL_SPACES = '\u00a0\u2007\u202f'
+BRK_SPACES = ' \u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2008\u2009\u200a\u205f\u3000'
+SP_CLASS = '[' + GL_SPACES + BRK_SPACES + ']'   # toute espace horizontale
+BRK_CLASS = '[' + BRK_SPACES + ']'              # espaces sécables uniquement
 LETTER = 'A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff'
 
 SPLIT_RE = re.compile(r'(<[^>]+>|<!--.*?-->)', re.S)
@@ -222,7 +227,9 @@ def transform_doc(htm, rules):
 # ---------- Validation ----------
 NORM_MAP = str.maketrans({
     '\u2019': "'", '\u2014': '-', '\u2013': '-',
-    '\u00a0': ' ', '\u202f': ' ', '\u2009': ' ',
+    '\u00a0': ' ', '\u2007': ' ', '\u202f': ' ',
+    '\u2000': ' ', '\u2001': ' ', '\u2002': ' ', '\u2003': ' ', '\u2004': ' ', '\u2005': ' ',
+    '\u2006': ' ', '\u2008': ' ', '\u2009': ' ', '\u200a': ' ', '\u205f': ' ', '\u3000': ' ',
     '\u0153': '_oe_', '\u0152': '_OE_',
     '\u00c9': 'E', '\u00c0': 'A', '\u00c8': 'E', '\u00ca': 'E',
 })
