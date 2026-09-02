@@ -36,6 +36,30 @@ check('R1 élision', run("<p>l'arbre d'Artagnan jusqu'à aujourd'hui</p>"),
 check('R1 anglais préservé hors lettres', run("<p>'quoted' rock 'n' roll</p>"),
       doc("<p>'quoted' rock 'n' roll</p>"))
 
+# R1 — lettres hors Latin-1 (œ, Œ, Ÿ) : l'apostrophe qui les touche doit être courbée
+check('R1 apostrophe devant œ', run("<p>un coup d'œil sur l'œuvre</p>"),
+      doc('<p>un coup d’œil sur l’œuvre</p>'))
+check('R1 apostrophe après œ', run("<p>l'œuf'un</p>"),
+      doc('<p>l’œuf’un</p>'))
+check('R1 majuscules ligaturées', run("<p>d'Œdipe et d'Ÿs</p>"),
+      doc('<p>d’Œdipe et d’Ÿs</p>'))
+
+# R4 — ponctuation double séparée du texte par une balise en ligne
+check('R4 » enveloppé dans <i>', run('<p>que faire ? <i>»</i></p>'),
+      doc('<p>que faire' + NB + '?' + NB + '<i>»</i></p>'))
+check('R4 » enveloppé et collé', run('<p>que faire ?<i>»</i></p>'),
+      doc('<p>que faire' + NB + '?' + NB + '<i>»</i></p>'))
+check('R4 « suivi d’une balise', run('<p>« <i>Bonjour</i> »</p>'),
+      doc('<p>«' + NB + '<i>Bonjour</i>' + NB + '»</p>'))
+check('R4 « enveloppé dans <i>', run('<p><i>«</i> Bonjour »</p>'),
+      doc('<p><i>«</i>' + NB + 'Bonjour' + NB + '»</p>'))
+check('R4 ne franchit pas une frontière de bloc',
+      run('<p>fin </p><p>» suite</p>'),
+      doc('<p>fin </p><p>» suite</p>'))
+check('R4 inline : idempotence',
+      run(run('<p>que faire ? <i>»</i></p>').replace('<html><head><title>t</title></head><body>', '').replace('</body></html>', '')),
+      doc('<p>que faire' + NB + '?' + NB + '<i>»</i></p>'))
+
 # R2 ligatures
 check('R2 cœur/sœur/œil/mœurs', run('<p>le coeur, la soeur, un oeil, les moeurs, la manoeuvre</p>'),
       doc('<p>le cœur, la sœur, un œil, les mœurs, la manœuvre</p>'))
