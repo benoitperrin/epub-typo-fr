@@ -165,14 +165,30 @@ class Rules:
         t, n1 = re.subn(BRK_CLASS + r'+([!?;:»])', sp + r'\1', t)
         # insérer l'insécable manquante avant ! ? ; (pas dans une rafale ?! déjà traitée)
         t, n2 = re.subn(r'(?<=[%s0-9)»…’])(?=[!?;])' % LETTER, sp, t)
-        # deux-points : insérer seulement si suivi d'espace (épargne 10:30, URLs)
-        t, n3 = re.subn(r'(?<=[%s)»])(?=:\s)' % LETTER, sp, t)
+        # deux-points : suivi d'une espace, ou en fin de nœud texte (« …disait: </p> »,
+        # relevé 145 fois dans le Daudet #959). La garde de gauche exclut déjà les
+        # chiffres, donc « 10:30 » et « http:// » restent hors d'atteinte.
+        t, n3 = re.subn(r'(?<=[%s)»])(?=:(?:\s|$))' % LETTER, sp, t)
         # guillemet ouvrant : normaliser l'espace sécable / insérer si collé
         t, n4 = re.subn(r'«' + BRK_CLASS + r'+', '«' + sp, t)
         t, n5 = re.subn(r'«(?=\S)', '«' + sp, t)
         # guillemet fermant : insérer si collé (\S exclut déjà 00A0/202F)
         t, n6 = re.subn(r'(?<=[^\s«])(?=»)', sp, t)
         self.counts['R4_insecables'] += n1 + n2 + n3 + n4 + n5 + n6
+        return t
+
+    # ---- R8 ----
+    def fix_space_runs(self, t):
+        """Rafale de 2+ espaces horizontales ENTRE deux caractères visibles → une seule.
+
+        Séquelle de mise en page (Word : « depuis\u00a0 une semaine », « «\u00a0 Je »).
+        L'insécable ne se replie pas au rendu : la rafale est un vrai double blanc à
+        l'écran. On rend une espace ordinaire et on laisse R4 réinsérer l'insécable là
+        où la typographie française la demande — d'où l'ordre : avant fix_nbsp.
+        L'indentation de début de ligne est épargnée (garde de gauche = non-espace).
+        """
+        t, n = re.subn(r'(?<=\S)' + SP_CLASS + r'{2,}(?=\S)', ' ', t)
+        self.counts['R8_rafales'] += n
         return t
 
     def apply_text(self, t):
@@ -182,6 +198,7 @@ class Rules:
         t = self.fix_ligatures(t)
         t = self.fix_ellipsis(t)
         t = self.fix_caps(t)
+        t = self.fix_space_runs(t)
         t = self.fix_nbsp(t)
         return t
 
@@ -253,6 +270,33 @@ def join_inline_punct(out, text_idx, rules):
     rules.counts['R4_insecables'] += n
 
 
+def join_inline_apostrophe(out, text_idx, rules):
+    """R1 à travers une balise en ligne : « l'<i>Etoile du berger</i> ».
+
+    Même angle mort que pour R4 : le correcteur travaille nœud par nœud, or
+    l'apostrophe d'élision et la lettre qu'elle introduit peuvent se trouver de
+    part et d'autre d'une balise en ligne. Relevé 6 fois dans le Daudet #959
+    (« l'<i>Almanach provençal</i> », « le bateau l'<i>Émilie</i> »…), où R1 les
+    laissait droites au milieu de 2 855 courbes.
+    """
+    n = 0
+    for a, b in zip(text_idx, text_idx[1:]):
+        left, right = out[a], out[b]
+        if len(left) < 2 or not right:
+            continue
+        if not _inline_only(out[a + 1:b]):
+            continue
+        if left[-1] != "'":
+            continue
+        if not re.match('[%s]' % LETTER, left[-2]):
+            continue
+        if not re.match('[%s]' % LETTER, right[0]):
+            continue
+        out[a] = left[:-1] + '\u2019'
+        n += 1
+    rules.counts['R1_apostrophes'] += n
+
+
 def transform_doc(htm, rules):
     """Transforme un document XHTML. Retourne (nouveau_doc, nb_dialogues_fixés)."""
     parts = SPLIT_RE.split(htm)
@@ -293,6 +337,7 @@ def transform_doc(htm, rules):
         t = rules.apply_text(t)
         text_idx.append(len(out))
         out.append(t)
+    join_inline_apostrophe(out, text_idx, rules)
     join_inline_punct(out, text_idx, rules)
     for i in text_idx:
         out[i] = html.escape(out[i], quote=False)

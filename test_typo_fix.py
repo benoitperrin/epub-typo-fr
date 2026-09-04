@@ -148,3 +148,33 @@ if FAILED:
         print(x)
     sys.exit(1)
 print('Tous les tests passent.')
+
+# ---- T1 : R4 devant « : » en fin de nœud texte -------------------------------
+check('R4 deux-points en fin de nœud', run('<p>Il disait:</p>'),
+      doc('<p>Il disait' + NB + ':</p>'))
+check('R4 deux-points suivi d’une balise en ligne', run('<p>voici<i>x</i>comment:</p>'),
+      doc('<p>voici<i>x</i>comment' + NB + ':</p>'))
+check('R4 deux-points : l’heure reste intacte', run('<p>rendez-vous à 10:30</p>'),
+      doc('<p>rendez-vous à 10:30</p>'))
+check('R4 deux-points : fin de nœud numérique épargnée', run('<p>page 10:</p>'),
+      doc('<p>page 10:</p>'))
+check('R4 deux-points : idempotence', run(run('<p>Il disait:</p>').split('<body>')[1].split('</body>')[0]),
+      doc('<p>Il disait' + NB + ':</p>'))
+
+# ---- T2 : R1 à travers une balise en ligne -----------------------------------
+check('R1 apostrophe avant une balise en ligne', run("<p>le bateau l'<i>Émilie</i></p>"),
+      doc('<p>le bateau l’<i>Émilie</i></p>'))
+check('R1 ne franchit pas une frontière de bloc', run("<p>fin l'</p><p>Suite</p>"),
+      doc("<p>fin l'</p><p>Suite</p>"))
+check('R1 inline : pas de lettre à droite → intact', run("<p>l'<i>1789</i></p>"),
+      doc("<p>l'<i>1789</i></p>"))
+
+# ---- T3 (R8) : rafales d’espaces ---------------------------------------------
+check('R8 insécable + espace entre deux mots', run('<p>depuis\u00a0 une semaine</p>'),
+      doc('<p>depuis une semaine</p>'))
+check('R8 rafale après un guillemet ouvrant', run('<p>«\u00a0 Je vois</p>'),
+      doc('<p>«' + NB + 'Je vois</p>'))
+check('R8 épargne l’indentation de ligne', run('<p>a\n    b</p>'),
+      doc('<p>a\n    b</p>'))
+check('R8 idempotence', run(run('<p>depuis\u00a0 une semaine</p>').split('<body>')[1].split('</body>')[0]),
+      doc('<p>depuis une semaine</p>'))
