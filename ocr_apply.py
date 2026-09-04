@@ -20,6 +20,10 @@ from collections import defaultdict
 
 TAG_RE = re.compile(r'(<[^>]+>|<!--.*?-->)', re.S)
 SKIP_CONTENT = {'style', 'script', 'pre', 'code', 'svg'}
+# Le NCX et l'OPF sont du XML à nœuds texte : libellés de la table des matières,
+# titre, auteur. Ils portent les mêmes fautes que le corps du livre et le
+# correcteur typographique, lui, ne les traite pas.
+PATCHABLE = ('.xhtml', '.html', '.htm', '.ncx', '.opf')
 
 
 def edit_distance(a, b, cap=50):
@@ -121,6 +125,7 @@ def main():
             n_corr += 1
 
     zin = zipfile.ZipFile(args.infile)
+    zin_names = zin.namelist()
     applied, rejected = [], []
 
     # budget global
@@ -145,7 +150,7 @@ def main():
             continue
         data = zin.read(item.filename)
         todo = corrections.get(item.filename, [])
-        if todo and item.filename.lower().endswith(('.xhtml', '.html', '.htm')):
+        if todo and item.filename.lower().endswith(PATCHABLE):
             htm = data.decode('utf-8', errors='replace')
             parts = split_doc(htm)
             # texte par segment (désentitisé)
@@ -217,6 +222,23 @@ def main():
         out.writestr(info, data)
     out.close()
     zin.close()
+
+    # Aucune correction ne doit disparaître en silence : celle dont le `doc` ne
+    # correspond à aucune entrée du zip, ou à une entrée non patchable, n'était
+    # jusqu'ici ni appliquée ni rejetée — elle s'évaporait, et le compte final
+    # paraissait bon.
+    vus = {id(c) for _, c, *_ in applied} | {id(c) for c, _ in rejected}
+    noms = set(zin_names)
+    for doc, lot in corrections.items():
+        for c in lot:
+            if id(c) in vus:
+                continue
+            if doc not in noms:
+                rejected.append((c, f'document absent du livre : {doc}'))
+            elif not doc.lower().endswith(PATCHABLE):
+                rejected.append((c, f'document non patchable ({doc}) — attendu {"/".join(PATCHABLE)}'))
+            else:
+                rejected.append((c, 'non traitée (cause inconnue)'))
 
     print(f'{len(applied)} appliquées, {len(rejected)} rejetées (budget {budget})')
     if args.report:

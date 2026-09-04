@@ -103,3 +103,41 @@ if FAILED:
     print(f'{len(FAILED)} ÉCHEC(S): ' + ', '.join(FAILED))
     sys.exit(1)
 print('Tous les tests ocr_apply passent.')
+
+# --- rien ne disparaît en silence -------------------------------------------
+def _epub_ncx(tmp):
+    """Un EPUB minimal avec un toc.ncx portant une coquille."""
+    import zipfile, os
+    p = os.path.join(tmp, 'ncx.epub')
+    z = zipfile.ZipFile(p, 'w')
+    z.writestr('mimetype', 'application/epub+zip')
+    z.writestr('toc.ncx', '<?xml version="1.0"?><ncx><navMap><navPoint><navLabel>'
+                          '<text>LE SECRET DE MAITRE CORNILLE</text></navLabel></navPoint>'
+                          '</navMap></ncx>')
+    z.writestr('t.htm', '<html><body><p>' + ('mot ' * 300) + '</p></body></html>')
+    z.close()
+    return p
+
+def _run(tmp, epub, corr):
+    import json, subprocess, os, sys
+    cp = os.path.join(tmp, 'c.jsonl')
+    open(cp, 'w').write('\n'.join(json.dumps(c, ensure_ascii=False) for c in corr))
+    out = os.path.join(tmp, 'out.epub')
+    rep = os.path.join(tmp, 'r.md')
+    r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ocr_apply.py'),
+                        epub, out, cp, '--report', rep], capture_output=True, text=True)
+    return out, r.stdout + r.stderr + open(rep).read()
+
+import tempfile, zipfile as _zf
+with tempfile.TemporaryDirectory() as _t:
+    _e = _epub_ncx(_t)
+    _o, _log = _run(_t, _e, [
+        {'doc': 'toc.ncx', 'chercher': 'SECRET DE MAITRE CORNILLE',
+         'remplacer': 'SECRET DE MAÎTRE CORNILLE', 'raison': 'capitale accentuée'},
+        {'doc': 'absent.htm', 'chercher': 'quelque chose', 'remplacer': 'quelque chose d’autre',
+         'raison': 'document qui n’existe pas'},
+    ])
+    _ncx = _zf.ZipFile(_o).read('toc.ncx').decode('utf-8')
+    check('ocr_apply patche le toc.ncx', 'MAÎTRE CORNILLE' in _ncx)
+    check('ocr_apply signale le doc absent', 'document absent du livre' in _log)
+    check('ocr_apply : 1 appliquée, 1 rejetée', '1 appliquées, 1 rejetées' in _log)
