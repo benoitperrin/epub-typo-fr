@@ -35,7 +35,10 @@ GL_SPACES = '\u00a0\u2007\u202f'
 BRK_SPACES = ' \u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2008\u2009\u200a\u205f\u3000'
 SP_CLASS = '[' + GL_SPACES + BRK_SPACES + ']'   # toute espace horizontale
 BRK_CLASS = '[' + BRK_SPACES + ']'              # espaces sécables uniquement
-LETTER = 'A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff'
+# Latin-1 ne suffit pas : œ/Œ (U+0153/0152), Ÿ, š/Š, ž/Ž vivent en Latin Extended-A.
+# Sans eux, R1 laisse « coup d'œil » et « hors-d'œuvre » en apostrophe droite
+# (relevé sur le pilote Fantômette #52 : 19 des 22 résidus).
+LETTER = 'A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff\u0152\u0153\u0160\u0161\u0178\u017d\u017e'
 
 SPLIT_RE = re.compile(r'(<[^>]+>|<!--.*?-->)', re.S)
 SKIP_CONTENT = {'style', 'script', 'pre', 'code', 'svg'}
@@ -183,6 +186,73 @@ class Rules:
         return t
 
 
+# ---- R4 à travers une balise en ligne ----
+# Le correcteur travaille nœud de texte par nœud de texte. Quand la ponctuation
+# double est enveloppée — « … de parler ? <i class="calibre4">»</i> », fabrication
+# Calibre courante — l'espace et le guillemet sont dans deux nœuds différents et
+# R4 ne les voit pas. Relevé sur le pilote Fantômette #52 : 70 « » » manqués sur
+# 487. Ce passage rattrape les paires séparées par des balises EN LIGNE seulement,
+# jamais à travers une frontière de bloc.
+CLOSE_PUNCT = '!?;»'
+_BRK_RUN_END = re.compile(BRK_CLASS + r'+$')
+_BRK_RUN_START = re.compile(r'^' + BRK_CLASS + r'+')
+_GL_END = re.compile('[' + GL_SPACES + r']$')
+_OPEN_END = re.compile('«[' + GL_SPACES + BRK_SPACES + r']*$')
+
+
+def _inline_only(parts):
+    """Vrai si toutes ces balises sont en ligne (ni bloc, ni contenu à ignorer)."""
+    for part in parts:
+        m = re.match(r'</?\s*([a-zA-Z0-9]+)', part)
+        tag = m.group(1).lower() if m else ''
+        if part.startswith('<!--'):
+            continue
+        if tag not in INLINE_TAGS and tag != 'br':
+            return False
+    return True
+
+
+def join_inline_punct(out, text_idx, rules):
+    sp = rules.sp
+    n = 0
+    for a, b in zip(text_idx, text_idx[1:]):
+        left, right = out[a], out[b]
+        if not left or not right:
+            continue
+        if not _inline_only(out[a + 1:b]):
+            continue
+        # ponctuation fermante ouvrant le nœud suivant : l'espace se règle à gauche
+        c = right[0]
+        if c in CLOSE_PUNCT or (c == ':' and (len(right) == 1 or right[1].isspace())):
+            if _GL_END.search(left):
+                continue                       # insécable déjà en place
+            if _BRK_RUN_END.search(left):
+                out[a] = _BRK_RUN_END.sub(sp, left)
+                n += 1
+            else:
+                # « » accepte tout caractère non-espace (comme la règle en nœud) ;
+                # « ! ? ; : » gardent la classe étroite, pour épargner 10:30 & co.
+                ok = (re.search(r'[^\s«]$', left) if c == '»'
+                      else re.search('[%s0-9)»…’]$' % LETTER, left))
+                if ok:
+                    out[a] = left + sp
+                    n += 1
+        # guillemet ouvrant en fin de nœud : l'espace se règle à droite
+        elif _OPEN_END.search(left):
+            if _GL_END.search(left):
+                continue
+            if _BRK_RUN_END.search(left):
+                out[a] = _BRK_RUN_END.sub(sp, left)
+                n += 1
+            elif _BRK_RUN_START.match(right):
+                out[b] = _BRK_RUN_START.sub(sp, right)
+                n += 1
+            elif not right[0].isspace():
+                out[a] = left + sp
+                n += 1
+    rules.counts['R4_insecables'] += n
+
+
 def transform_doc(htm, rules):
     """Transforme un document XHTML. Retourne (nouveau_doc, nb_dialogues_fixés)."""
     parts = SPLIT_RE.split(htm)
@@ -190,6 +260,7 @@ def transform_doc(htm, rules):
     skip_depth = 0
     at_para_start = False
     dlg = 0
+    text_idx = []
     for part in parts:
         if part.startswith('<'):
             if not part.startswith('<!--'):
@@ -220,7 +291,11 @@ def transform_doc(htm, rules):
         if t.strip():
             at_para_start = False
         t = rules.apply_text(t)
-        out.append(html.escape(t, quote=False))
+        text_idx.append(len(out))
+        out.append(t)
+    join_inline_punct(out, text_idx, rules)
+    for i in text_idx:
+        out[i] = html.escape(out[i], quote=False)
     return ''.join(out), dlg
 
 
@@ -238,9 +313,11 @@ def normalize_for_check(text):
     t = text.translate(NORM_MAP)
     t = t.replace('_oe_', 'oe').replace('_OE_', 'OE')
     t = t.replace('…', '...')
-    # neutraliser l'espacement de la ponctuation française (R4 insère des espaces)
-    t = re.sub(r'[ \t]*([!?;:»])', r'\1', t)
-    t = re.sub(r'(«)[ \t]*', r'\1', t)
+    # neutraliser l'espacement de la ponctuation française (R4 insère des espaces).
+    # \x00 = frontière de balise : R4 règle aussi les paires séparées par une
+    # balise en ligne (« ? <i>»</i> »), l'espace peut donc border un marqueur.
+    t = re.sub(r'[ \t]*(\x00*[!?;:»])', r'\1', t)
+    t = re.sub(r'(«\x00*)[ \t]*', r'\1', t)
     t = re.sub(r'\s+', ' ', t)
     return t.strip()
 
