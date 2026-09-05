@@ -165,7 +165,13 @@ def main():
                 pure_deletion = norm_spaces(rp) in norm_spaces(ch) and len(rp) < len(ch)
                 max_ed = 30 if pure_deletion else args.max_edit
                 max_wd = 6 if pure_deletion else args.max_word_delta
-                if len(ch) < 8:
+                # Un motif court est ambigu… sauf quand il occupe À LUI SEUL un
+                # nœud de texte : sa position est alors déterminée par le balisage,
+                # pas par le voisinage. Fabrication Word→Calibre courante —
+                # « <span lang="EN-US">Mlick </span> » ne peut pas être allongé.
+                noeud_entier = any(norm_spaces(t).strip() == norm_spaces(ch).strip()
+                                   for _, t in seg_texts)
+                if len(ch) < 8 and not noeud_entier:
                     rejected.append((c, 'motif trop court (<8 chars), ambigu'))
                     continue
                 if ed > max_ed or wd > max_wd or abs(len(rp) - len(ch)) > 60:
@@ -179,8 +185,21 @@ def main():
                     t_old = dict(seg_texts)[i]
                     t_new = t_old.replace(ch, rp, 1)
                 elif total_hits > 1:
-                    rejected.append((c, f'motif non unique ({total_hits} occurrences)'))
-                    continue
+                    # Le motif se répète, mais un seul nœud de texte le vaut EXACTEMENT :
+                    # sa position est alors donnée par le balisage. Fabrication
+                    # Word→Calibre courante, qui isole une ponctuation dans son propre
+                    # élément — « En tout cas <sub class="calibre28">;</sub> le bon
+                    # vieux Dago », où le « ; » ne peut être atteint autrement.
+                    entiers = [(i, t) for i, t in seg_texts
+                               if norm_spaces(t).strip() == norm_spaces(ch).strip()]
+                    if len(entiers) != 1:
+                        rejected.append((c, f'motif non unique ({total_hits} occurrences)'))
+                        continue
+                    i, t_old = entiers[0]
+                    pos = t_old.find(ch)
+                    if pos < 0:
+                        pos = norm_spaces(t_old).find(norm_spaces(ch))
+                    t_new = t_old[:pos] + rp + t_old[pos + len(ch):]
                 else:
                     # 2) tolérance espaces insécables/fines (citations d'agents)
                     hit, n = tolerant_find(seg_texts, ch)

@@ -141,3 +141,47 @@ with tempfile.TemporaryDirectory() as _t:
     check('ocr_apply patche le toc.ncx', 'MAÎTRE CORNILLE' in _ncx)
     check('ocr_apply signale le doc absent', 'document absent du livre' in _log)
     check('ocr_apply : 1 appliquée, 1 rejetée', '1 appliquées, 1 rejetées' in _log)
+
+# --- motif court mais seul dans son nœud ------------------------------------
+def _epub_span(tmp):
+    import zipfile, os
+    p = os.path.join(tmp, 'span.epub')
+    z = zipfile.ZipFile(p, 'w')
+    z.writestr('mimetype', 'application/epub+zip')
+    z.writestr('t.htm', '<html><body><p><span lang="EN-US">Mlick </span>'
+                        '<span>finit par la trouver. ' + ('mot ' * 300) + '</span></p></body></html>')
+    z.close()
+    return p
+
+with tempfile.TemporaryDirectory() as _t:
+    _e = _epub_span(_t)
+    _o, _log = _run(_t, _e, [{'doc': 't.htm', 'chercher': 'Mlick', 'remplacer': 'Mick',
+                              'raison': 'prénom, capitale M brisée en Ml'}])
+    _h = _zf.ZipFile(_o).read('t.htm').decode('utf-8')
+    check('ocr_apply : motif court seul dans son nœud accepté', '>Mick </span>' in _h)
+    _o2, _log2 = _run(_t, _e, [{'doc': 't.htm', 'chercher': 'mot', 'remplacer': 'mât',
+                                'raison': 'motif court ET noyé dans un nœud'}])
+    check('ocr_apply : motif court noyé toujours refusé', 'trop court' in _log2)
+
+# --- motif répété, mais un seul nœud le vaut exactement ---------------------
+def _epub_sub(tmp):
+    import zipfile, os
+    p = os.path.join(tmp, 'sub.epub')
+    z = zipfile.ZipFile(p, 'w')
+    z.writestr('mimetype', 'application/epub+zip')
+    z.writestr('t.htm', '<html><body><p>En tout cas <sub class="c">;</sub> le bon vieux Dago '
+                        'est avec elles ; il les defend ; toujours. ' + ('mot ' * 300) + '</p></body></html>')
+    z.close()
+    return p
+
+with tempfile.TemporaryDirectory() as _t:
+    _e = _epub_sub(_t)
+    _o, _log = _run(_t, _e, [{'doc': 't.htm', 'chercher': ';', 'remplacer': ',',
+                              'raison': 'point-virgule isolé dans son propre élément'}])
+    _h = _zf.ZipFile(_o).read('t.htm').decode('utf-8')
+    check('ocr_apply : nœud entier atteint malgré 3 occurrences', '<sub class="c">,</sub>' in _h)
+    check('ocr_apply : les autres occurrences intactes', _h.count(' ; ') == 2)
+    _o2, _log2 = _run(_t, _e, [{'doc': 't.htm', 'chercher': 'mot', 'remplacer': 'mât',
+                                'raison': 'répété et jamais seul dans un nœud'}])
+    check('ocr_apply : motif répété sans nœud propre toujours refusé',
+          'trop court' in _log2 or 'non unique' in _log2)
