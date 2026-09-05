@@ -50,6 +50,11 @@ def classify(a, b):
     ta, tb = sa.lstrip("'’"), sb.lstrip("'’")
     if len(ta) == 1 and len(tb) == 1 and CAPS.get(ta) == tb:
         return "R6 capitale accentuée"
+    # R3b/R3c — l'espace que le correcteur pose autour du cadratin : après lui en
+    # début de réplique, des deux côtés pour une incise. La diff ne voit alors
+    # qu'une espace apparaître à côté d'un tiret déjà présent.
+    if a == "" and b and set(b) <= {" ", " ", " "}:
+        return "R4/R3 espace insérée"
     return "AUTRE"
 
 def vis(s):
