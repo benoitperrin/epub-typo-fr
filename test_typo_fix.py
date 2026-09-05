@@ -192,3 +192,21 @@ check('R8 rafale close par la fin du nœud', run('<p><b>«  </b>Je suis</p>')
       doc('<p><b>«' + NB + '</b>Je suis</p>'))
 check('R8 fin de nœud : indentation toujours épargnée', run('<p>a\n    </p>'),
       doc('<p>a\n    </p>'))
+
+# ---- R3b : cadratin de dialogue déjà présent mais collé ----------------------
+check('R3b cadratin collé en début de réplique', run('<p>—Elle est jolie !</p>'),
+      doc('<p>— Elle est jolie' + NB + '!</p>'))
+check('R3b cadratin déjà espacé : normalisé en insécable', run('<p>— Elle est jolie</p>'),
+      doc('<p>— Elle est jolie</p>'))
+check('R3b idempotence', run(run('<p>—Elle est jolie</p>').split('<body>')[1].split('</body>')[0]),
+      doc('<p>— Elle est jolie</p>'))
+
+# ---- R3c : cadratin d’incise -------------------------------------------------
+check('R3c incise soudée', run('<p>sa main,—une longue main,—trembler</p>'),
+      doc('<p>sa main, — une longue main, — trembler</p>'))
+check('R3c incise à espace baladeuse', run('<p>du cru, —ce beau vin</p>'),
+      doc('<p>du cru, — ce beau vin</p>'))
+check('R3c ne touche pas le tiret de dialogue', run('<p>—Va-t’en donc</p>'),
+      doc('<p>— Va-t’en donc</p>'))
+check('R3c idempotence', run(run('<p>sa main,—une longue main</p>').split('<body>')[1].split('</body>')[0]),
+      doc('<p>sa main, — une longue main</p>'))

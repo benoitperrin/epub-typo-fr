@@ -195,6 +195,24 @@ class Rules:
         self.counts['R8_rafales'] += n
         return t
 
+    # ---- R3c ----
+    def fix_dash_incise(self, t):
+        """Cadratin d'incise : « sa main,—une longue main blafarde » → « sa main, — une… ».
+
+        Même artefact que le tiret de dialogue collé, et même démonstration :
+        le témoin Wikisource et le Gallica Hetzel 1877 écrivent tous deux
+        « sa main, — une longue main blafarde et bête, — trembler ». La copie
+        Gutenberg soude les 122 incises du volume. Le tiret de dialogue, lui,
+        est traité en amont par R3 et se reconnaît à ce qu'il ouvre le nœud —
+        d'où la garde de gauche, qui exige un caractère visible avant.
+        """
+        def repl(m):
+            if m.group(0) == ' — ':
+                return m.group(0)          # déjà conforme : ne pas compter
+            self.counts['R3_incises'] += 1
+            return ' — '
+        return re.sub(r'(?<=[^\s—])' + SP_CLASS + r'*—' + SP_CLASS + r'*(?=[^\s—])', repl, t)
+
     def apply_text(self, t):
         t = self.fix_a_grave_decisions(t)
         t = self.fix_mojibake(t)
@@ -202,6 +220,7 @@ class Rules:
         t = self.fix_ligatures(t)
         t = self.fix_ellipsis(t)
         t = self.fix_caps(t)
+        t = self.fix_dash_incise(t)
         t = self.fix_space_runs(t)
         t = self.fix_nbsp(t)
         return t
@@ -333,6 +352,13 @@ def transform_doc(htm, rules):
         # R3 — tiret de dialogue en début de paragraphe
         if at_para_start:
             t, n = re.subn(r'^(\s*)-' + SP_CLASS + r'+', r'\1—' + NBSP, t, count=1)
+            if not n:
+                # Le cadratin peut être déjà là, mais collé à la réplique —
+                # « <p>—Elle est jolie » : convention Project Gutenberg, contraire
+                # à l'édition (402 collés dans le Daudet #959, contre 0 chez le
+                # témoin Wikisource et 3 sur 401 dans l'OCR du fac-similé).
+                t, n = re.subn(r'^(\s*)—(?!' + NBSP + r')' + SP_CLASS + r'*(?=\S)',
+                               r'\1—' + NBSP, t, count=1)
             if n:
                 dlg += n
                 rules.counts['R3_dialogues'] += n
@@ -367,6 +393,12 @@ def normalize_for_check(text):
     # neutraliser après coup ne suffit pas — l'ordre inverse faisait échouer
     # l'invariant sur sept documents du Blyton #649.
     t = re.sub(r'\s+', ' ', t)
+    # L'espacement du tiret est du ressort de R3 : « - Bonjour » (trait d'union +
+    # espace), « —Bonjour » (cadratin collé) et « — Bonjour » doivent se réduire à
+    # la même chose, sinon R3, R3b et R3c échouent tous à l'invariant. NORM_MAP a
+    # déjà ramené cadratin et demi-cadratin au trait d'union, il n'en reste qu'un
+    # à traiter. Le correcteur ne touche à aucun autre trait d'union.
+    t = re.sub(r' *- *', '-', t)
     # puis neutraliser l'espacement de la ponctuation française (R4 en insère).
     # \x00 = frontière de balise : R4 règle aussi les paires séparées par une
     # balise en ligne (« ? <i>»</i> »), l'espace peut donc border un marqueur.
