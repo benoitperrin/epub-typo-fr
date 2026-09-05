@@ -178,3 +178,17 @@ check('R8 épargne l’indentation de ligne', run('<p>a\n    b</p>'),
       doc('<p>a\n    b</p>'))
 check('R8 idempotence', run(run('<p>depuis\u00a0 une semaine</p>').split('<body>')[1].split('</body>')[0]),
       doc('<p>depuis une semaine</p>'))
+
+# ---- R4 : la fin de ligne du source vaut espace sécable ----------------------
+check('R4 saut de ligne devant »', run('<p>ces sources\n»</p>'),
+      doc('<p>ces sources' + NB + '»</p>'))
+check('R4 « suivi d’un saut de ligne', run('<p>«\nDormez bien</p>'),
+      doc('<p>«' + NB + 'Dormez bien</p>'))
+check('R4 saut de ligne ordinaire préservé', run('<p>un mot\net un autre</p>'),
+      doc('<p>un mot\net un autre</p>'))
+
+# ---- R8 : rafale en fin de nœud ---------------------------------------------
+check('R8 rafale close par la fin du nœud', run('<p><b>«  </b>Je suis</p>'),
+      doc('<p><b>«' + NB + '</b>Je suis</p>'))
+check('R8 fin de nœud : indentation toujours épargnée', run('<p>a\n    </p>'),
+      doc('<p>a\n    </p>'))

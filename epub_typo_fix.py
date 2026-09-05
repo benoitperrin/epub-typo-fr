@@ -35,6 +35,10 @@ GL_SPACES = '\u00a0\u2007\u202f'
 BRK_SPACES = ' \u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2008\u2009\u200a\u205f\u3000'
 SP_CLASS = '[' + GL_SPACES + BRK_SPACES + ']'   # toute espace horizontale
 BRK_CLASS = '[' + BRK_SPACES + ']'              # espaces sécables uniquement
+# R4 seulement : la fin de ligne du source est, au rendu, une espace sécable —
+# « …ces sources\n» » se lit « …ces sources » ». Elle n'entre PAS dans SP_CLASS,
+# dont R8 se sert : y mettre \n ferait reformater tout le document.
+BRK_NL_CLASS = '[' + BRK_SPACES + '\n\r\t]'
 # Latin-1 ne suffit pas : œ/Œ (U+0153/0152), Ÿ, š/Š, ž/Ž vivent en Latin Extended-A.
 # Sans eux, R1 laisse « coup d'œil » et « hors-d'œuvre » en apostrophe droite
 # (relevé sur le pilote Fantômette #52 : 19 des 22 résidus).
@@ -162,7 +166,7 @@ class Rules:
         sp = self.sp
         # normaliser les espaces SÉCABLES avant ! ? ; : » (les insécables — fines
         # comprises — déjà en place sont respectées)
-        t, n1 = re.subn(BRK_CLASS + r'+([!?;:»])', sp + r'\1', t)
+        t, n1 = re.subn(BRK_NL_CLASS + r'+([!?;:»])', sp + r'\1', t)
         # insérer l'insécable manquante avant ! ? ; (pas dans une rafale ?! déjà traitée)
         t, n2 = re.subn(r'(?<=[%s0-9)»…’])(?=[!?;])' % LETTER, sp, t)
         # deux-points : suivi d'une espace, ou en fin de nœud texte (« …disait: </p> »,
@@ -170,7 +174,7 @@ class Rules:
         # chiffres, donc « 10:30 » et « http:// » restent hors d'atteinte.
         t, n3 = re.subn(r'(?<=[%s)»])(?=:(?:\s|$))' % LETTER, sp, t)
         # guillemet ouvrant : normaliser l'espace sécable / insérer si collé
-        t, n4 = re.subn(r'«' + BRK_CLASS + r'+', '«' + sp, t)
+        t, n4 = re.subn(r'«' + BRK_NL_CLASS + r'+', '«' + sp, t)
         t, n5 = re.subn(r'«(?=\S)', '«' + sp, t)
         # guillemet fermant : insérer si collé (\S exclut déjà 00A0/202F)
         t, n6 = re.subn(r'(?<=[^\s«])(?=»)', sp, t)
@@ -187,7 +191,7 @@ class Rules:
         où la typographie française la demande — d'où l'ordre : avant fix_nbsp.
         L'indentation de début de ligne est épargnée (garde de gauche = non-espace).
         """
-        t, n = re.subn(r'(?<=\S)' + SP_CLASS + r'{2,}(?=\S)', ' ', t)
+        t, n = re.subn(r'(?<=\S)' + SP_CLASS + r'{2,}(?=\S|$)', ' ', t)
         self.counts['R8_rafales'] += n
         return t
 
@@ -358,12 +362,16 @@ def normalize_for_check(text):
     t = text.translate(NORM_MAP)
     t = t.replace('_oe_', 'oe').replace('_OE_', 'OE')
     t = t.replace('…', '...')
-    # neutraliser l'espacement de la ponctuation française (R4 insère des espaces).
+    # Replier TOUT le blanc d'abord : R4 consomme aussi les fins de ligne du
+    # source (« …ces sources\n» » → « …ces sources<insécable>» »), donc les
+    # neutraliser après coup ne suffit pas — l'ordre inverse faisait échouer
+    # l'invariant sur sept documents du Blyton #649.
+    t = re.sub(r'\s+', ' ', t)
+    # puis neutraliser l'espacement de la ponctuation française (R4 en insère).
     # \x00 = frontière de balise : R4 règle aussi les paires séparées par une
     # balise en ligne (« ? <i>»</i> »), l'espace peut donc border un marqueur.
     t = re.sub(r'[ \t]*(\x00*[!?;:»])', r'\1', t)
     t = re.sub(r'(«\x00*)[ \t]*', r'\1', t)
-    t = re.sub(r'\s+', ' ', t)
     return t.strip()
 
 def doc_text(htm):
