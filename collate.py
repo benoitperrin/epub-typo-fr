@@ -25,6 +25,13 @@ Usage :
 Sorties (dans dossier/) : <id>-sites.json (toutes les divergences classées),
 <id>-corrections.jsonl (N0/N1 pour ocr_apply.py), <id>-juin.json (corrections
 antérieures confirmées/infirmées si --original), <id>-stats.json.
+
+Un témoin ne témoigne que de ce qu'il sait écrire : celui qui rend un caractère
+moins d'un quart aussi souvent que ses pairs est déclaré aveugle sur ce caractère
+et ne peut plus contredire une correction qui l'introduit. Sans cette garde, deux
+OCR incapables de rendre un « À » (0 et 5 occurrences contre 72 pour la
+transcription validée) infirmaient 69 accentuations de capitale parfaitement
+justes.
 Le rapport Markdown est produit par collate_report.py à partir de ces fichiers.
 """
 import sys, os, re, json, html, gzip, zipfile, argparse, difflib, unicodedata
@@ -284,6 +291,16 @@ class Alignment:
                     self.jstart[i] = j1; self.jend[i] = j2
                     self.uncovered[i] = big
         self.covered_ratio = 1 - sum(self.uncovered[:n]) / max(1, n)
+        # Fréquence de chaque caractère chez ce témoin. Un OCR ne peut pas
+        # témoigner sur une lettre qu'il ne rend pas : le Gallica Hetzel 1877 des
+        # Lettres de mon moulin porte 25 « É » et pas un seul « À » sur tout le
+        # volume, et l'OCR du fac-similé Charpentier en rend 5 là où la
+        # transcription validée en a 67. Leur silence n'est pas une leçon, c'est
+        # une limite de la machine — d'où la comparaison entre témoins, plus bas.
+        self.freq = Counter()
+        for t in B:
+            self.freq.update(t.s)
+        self.aveugle = set()      # caractères sur lesquels ce témoin est muet
 
     def reading(self, a, b):
         """Tokens du témoin alignés sur notre intervalle [a, b) (vide si a == b : insertion)."""
@@ -551,6 +568,29 @@ def main():
         print(f'{name}: {len(B)} tokens, couverture {witnesses[name].covered_ratio:.1%}', file=sys.stderr)
     names = list(witnesses)
 
+    # ---- de quoi chaque témoin est-il capable ?
+    # ⚠ Limite assumée : l'heuristique tient le témoin le plus prolifique pour la
+    # référence. C'est vrai de la PERTE d'accent, qui est le défaut d'OCR courant ;
+    # ce l'est moins de l'INVENTION (l'OCR du fac-similé rend 25 « È » là où la
+    # transcription validée en a 3, en lisant des « E »). Elle peut donc taire à
+    # tort un contradicteur sur un caractère rare — jamais en fabriquer un.
+    # Un témoin qui rend un caractère bien plus rarement que ses pairs n'est pas
+    # un contradicteur sur ce caractère : il est aveugle. Seuil à 25 % du meilleur.
+    # Cas mesuré : « À » — transcription Wikisource 72, OCR du fac-similé 5,
+    # OCR Hetzel 0. Sans cette garde, 69 accentuations de capitale parfaitement
+    # justes sont classées « contradictoire » par deux OCR qui n'en rendent aucune.
+    ACCENTS = 'ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸÆŒ'
+    for ch in ACCENTS:
+        best = max(w.freq.get(ch, 0) for w in witnesses.values()) if witnesses else 0
+        if best < 5:
+            continue                      # trop rare pour conclure quoi que ce soit
+        for n, w in witnesses.items():
+            if w.freq.get(ch, 0) < 0.25 * best:
+                w.aveugle.add(ch)
+    for n, w in witnesses.items():
+        if w.aveugle:
+            print(f'{n}: aveugle sur {"".join(sorted(w.aveugle))}', file=sys.stderr)
+
     # ---- sites : union des divergences de tous les témoins, fusionnées par recouvrement
     raw = sorted(set(s for w in witnesses.values() for s in w.sites()))
     sites = []
@@ -728,6 +768,15 @@ def main():
                     v = 'infirme~'
                 else:
                     v = 'autre'
+                # Un témoin qui n'écrit jamais le caractère que la correction
+                # introduit ne peut pas se prononcer contre elle : il est muet,
+                # pas contradicteur. Sans cette garde, 69 accentuations de
+                # capitale parfaitement justes ont été classées « contradictoire »
+                # sur la foi de deux OCR incapables de rendre un « À ».
+                if v.startswith('infirme'):
+                    ajoutes = set(surf(ours) or '') - set(surf(c['avant']) or '')
+                    if ajoutes and ajoutes <= w.aveugle:
+                        v = 'muet'
                 verdicts[n] = (v, surf(r))
             vs = [v for v, _ in verdicts.values()]
             if any(v.startswith('confirme') for v in vs) and not any(v.startswith('infirme') for v in vs):
@@ -736,7 +785,7 @@ def main():
                 bilan = 'infirmée'
             elif any(v.startswith('infirme') for v in vs):
                 bilan = 'contradictoire'
-            elif all(v == 'non couvert' for v in vs):
+            elif all(v in ('non couvert', 'muet') for v in vs):
                 bilan = 'non collationnée'
             else:
                 bilan = 'autre leçon'
