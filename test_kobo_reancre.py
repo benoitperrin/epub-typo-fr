@@ -80,3 +80,31 @@ with tempfile.TemporaryDirectory() as t:
 print('\n' + ('Tous les tests passent.' if not FAILED
               else '%d ÉCHEC(S) : %s' % (len(FAILED), ', '.join(FAILED))))
 sys.exit(1 if FAILED else 0)
+
+# --- une ancre saine ne doit PAS être réécrite -------------------------------
+from kobo_reancre import lecture
+SPANS = [('kobo.5.5', 'Ensuite, si je n’avais pas eu de chance…'), ('kobo.6.1', 'Suite.')]
+check('lecture : ancre à cheval sur deux spans',
+      lecture(SPANS, 'span#kobo\\.5\\.5', 0, 'span#kobo\\.6\\.1', 0)
+      == 'Ensuite, si je n’avais pas eu de chance…')
+check('lecture : ancre dans un seul span',
+      lecture(SPANS, 'span#kobo\\.6\\.1', 0, 'span#kobo\\.6\\.1', 5) == 'Suite')
+check('lecture : span inconnu → rien',
+      lecture(SPANS, 'span#kobo\\.9\\.9', 0, 'span#kobo\\.9\\.9', 3) is None)
+
+with tempfile.TemporaryDirectory() as t:
+    ap2 = os.path.join(t, 'b.kepub')
+    kepub(ap2, SPANS)
+    dbp2 = os.path.join(t, 'K.sqlite')
+    db = sqlite3.connect(dbp2)
+    db.execute('CREATE TABLE Bookmark (BookmarkID TEXT PRIMARY KEY, VolumeID TEXT NOT NULL, '
+               'ContentID TEXT NOT NULL, StartContainerPath TEXT NOT NULL, StartOffset INTEGER, '
+               'EndContainerPath TEXT NOT NULL, EndOffset INTEGER, Text TEXT, Type TEXT)')
+    db.execute("INSERT INTO Bookmark VALUES ('b2','v','u!OPS!book_0002.xhtml',"
+               "'span#kobo\\.5\\.5',0,'span#kobo\\.6\\.1',0,"
+               "'Ensuite, si je n’avais pas eu de chance…','highlight')")
+    db.commit(); db.close()
+    outil = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'kobo_reancre.py')
+    r = subprocess.run([sys.executable, outil, dbp2, '--apres', ap2], capture_output=True, text=True)
+    check('ancre saine écrite autrement : laissée telle quelle',
+          '0 à recoller' in r.stdout and '1 déjà juste' in r.stdout)

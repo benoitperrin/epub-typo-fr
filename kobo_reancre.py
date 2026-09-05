@@ -52,6 +52,21 @@ def cle(t):
     return re.sub(r'\s+', '', t).lower()
 
 
+def lecture(spans, sp, so, ep, eo):
+    """Ce que l'ancre actuelle donne à lire, telle quelle."""
+    d = sp.replace('span#', '').replace('\\', '')
+    f = ep.replace('span#', '').replace('\\', '')
+    idx = {sid: i for i, (sid, _) in enumerate(spans)}
+    if d not in idx or f not in idx:
+        return None
+    if d == f:
+        return spans[idx[d]][1][so:eo]
+    i, j = idx[d], idx[f]
+    if j < i:
+        return None
+    return spans[i][1][so:] + ''.join(t for _, t in spans[i + 1:j]) + spans[j][1][:eo]
+
+
 def localiser(spans, texte):
     """Où le texte tombe-t-il dans cette suite de spans ?
     Rend (span_debut, offset_debut, span_fin, offset_fin) ou None."""
@@ -79,7 +94,8 @@ def localiser(spans, texte):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('db')
-    ap.add_argument('--avant', required=True, help='KEPUB tel qu’il était sur la liseuse')
+    ap.add_argument('--avant', help='KEPUB d’avant — facultatif : le recollage se fait '
+                                    'sur le texte figé de l’annotation, pas sur l’ancienne ancre')
     ap.add_argument('--apres', required=True, help='KEPUB déployé')
     ap.add_argument('--volume', help='VolumeID ou fragment (défaut : tous les livres annotés)')
     ap.add_argument('--go', action='store_true', help='écrire (sinon : plan seulement)')
@@ -106,6 +122,14 @@ def main():
         if not spans:
             perdu.append((bid, texte, 'fichier « %s » absent du nouveau KEPUB' % suffixe))
             continue
+        # Une ancre qui donne déjà à lire le bon texte n'est pas cassée : on n'y
+        # touche pas, même si l'outil saurait l'écrire autrement. Un surlignage à
+        # cheval sur deux spans s'écrit de plusieurs façons équivalentes, et
+        # réécrire ce qui va bien, c'est prendre un risque pour rien.
+        actuel = lecture(spans, sp, so, ep, eo)
+        if actuel is not None and cle(actuel) == cle(texte):
+            inchange += 1
+            continue
         r = localiser(spans, texte)
         if not r:
             perdu.append((bid, texte, 'texte introuvable ou ambigu dans le nouveau KEPUB'))
@@ -113,9 +137,6 @@ def main():
         nsp, nso, nep, neo = r
         anc = (sp, so, ep, eo)
         nouv = ('span#' + nsp.replace('.', r'\.'), nso, 'span#' + nep.replace('.', r'\.'), neo)
-        if anc == nouv:
-            inchange += 1
-            continue
         maj.append((bid, anc, nouv, texte, typ))
 
     def montre(a):
