@@ -883,7 +883,11 @@ def main():
                 else:
                     level = 'N2'
             elif len(covered) == 1:
-                level = 'N2-seul' if nat not in ('ocr_temoin', 'incertain') else 'bruit'
+                # un seul témoin, et sa leçon n'a aucun mot connu (folios, lettres isolées,
+                # débris d'OCR d'une table des matières) : ce n'est pas une leçon
+                muet = not any(t.kind == 'w' and len(t.k) > 1 and not t.k.isdigit() and lex.known(t.k)
+                               for t in theirs)
+                level = 'bruit' if nat in ('ocr_temoin', 'incertain') or muet else 'N2-seul'
             else:
                 level = 'N2-divergent'
             rec['niveau'] = level
