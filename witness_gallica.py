@@ -14,7 +14,8 @@ Usage :
 Le dossier reçoit pagination.xml + une page ALTO par vue (p0001.xml…). Reprise
 idempotente : les vues déjà présentes ne sont pas retéléchargées. Le texte de sortie
 contient un marqueur « #### vue N » par page (tolérés par collate.py, jamais alignés).
-Merci de respecter Gallica : une requête toutes les deux secondes par défaut.
+Merci de respecter Gallica : une requête toutes les deux secondes par défaut, et la
+pause s'allonge de moitié à chaque 429 (jusqu'à 20 s) : Gallica fixe le rythme.
 Quand Gallica refuse (429, 403, page anti-robot au lieu de l'ALTO), `--max-fail N`
 arrête tout après N vues refusées d'affilée, code de sortie 3 : on ne martèle pas
 un serveur qui a dit non, et l'appelant sait qu'il faut attendre ou changer de machine.
@@ -23,6 +24,9 @@ import sys, os, re, time, html, argparse, urllib.request
 
 UA = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
       'Chrome/128.0 Safari/537.36 epub-typo-fr/collation')
+
+
+THROTTLED = [0]   # nombre de 429 reçus depuis le lancement (lu par fetch pour ralentir)
 
 
 def get(url, timeout=90):
@@ -36,6 +40,11 @@ def get(url, timeout=90):
         except urllib.error.HTTPError as e:
             last = e.code
             if e.code == 429:
+                THROTTLED[0] += 1
+                if THROTTLED[0] == 1:
+                    hdrs = {k: v for k, v in e.headers.items()
+                            if k.lower() == 'retry-after' or 'ratelimit' in k.lower()}
+                    print(f'  429 reçu, en-têtes de débit : {hdrs or "aucun"}', flush=True)
                 wait = e.headers.get('Retry-After', '')
                 time.sleep(int(wait) if wait.isdigit() else 60 * (attempt + 1))
             elif e.code in (502, 503, 504):
@@ -51,6 +60,7 @@ def get(url, timeout=90):
 
 
 BLOCKED = 3   # code de sortie : Gallica refuse de servir
+MAX_PAUSE = 20.0
 
 
 def fetch(ark, d, pause, p_from, p_to, max_fail=0):
@@ -70,7 +80,12 @@ def fetch(ark, d, pause, p_from, p_to, max_fail=0):
     print(f'{ark} : {n} vues, {len(todo)} à récupérer', flush=True)
     refused = broken = 0
     for k, p in enumerate(todo, 1):
+        seen = THROTTLED[0]
         st, x = get(f'https://gallica.bnf.fr/RequestDigitalElement?O={ark}&E=ALTO&Deb={p}')
+        if THROTTLED[0] > seen and pause < MAX_PAUSE:
+            # Gallica a dit « trop vite » : on prend son rythme au lieu de se faire refouler
+            pause = min(round(pause * 1.5, 1), MAX_PAUSE)
+            print(f'  429 : pause portée à {pause} s', flush=True)
         if st == 200 and b'<alto' in x:
             open(os.path.join(d, f'p{p:04d}.xml'), 'wb').write(x)
             refused = broken = 0
