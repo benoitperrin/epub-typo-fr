@@ -260,6 +260,19 @@ def main():
                     # vieux Dago », où le « ; » ne peut être atteint autrement.
                     entiers = [(i, t) for i, t in seg_texts
                                if norm_spaces(t).strip() == norm_spaces(ch).strip()]
+                    if len(entiers) > 1 and (c.get('avant') or c.get('apres')):
+                        # Le même nœud se répète (« <i>riant</i> » à chaque didascalie) : la
+                        # correction dit ce qui l'entoure, texte des nœuds voisins compris.
+                        flat = lambda x: re.sub(r'\s+', ' ', norm_spaces(x))
+                        ordre = [j for j, _ in seg_texts]
+                        textes = dict(seg_texts)
+                        def voisinage(i):
+                            k = ordre.index(i)
+                            return (flat(''.join(textes[j] for j in ordre[max(0, k - 6):k])),
+                                    flat(''.join(textes[j] for j in ordre[k + 1:k + 7])))
+                        av, ap = flat(c.get('avant', '')).strip(), flat(c.get('apres', '')).strip()
+                        entiers = [(i, t) for i, t in entiers
+                                   if voisinage(i)[0].rstrip().endswith(av) and voisinage(i)[1].lstrip().startswith(ap)]
                     if len(entiers) != 1:
                         rejected.append((c, f'motif non unique ({total_hits} occurrences)'))
                         continue

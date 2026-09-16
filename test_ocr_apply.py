@@ -105,6 +105,16 @@ out, body = apply('<p>l’âne\ns’impatiente et part au\ngalop. Sophie veut l�
 check('retour à la ligne toléré comme une espace',
       body and 'part au grand galop' in body.replace('\n', ' ') and body.count('\n') >= 2)
 
+# nœud entier répété, désigné par son voisinage (« avant » / « apres »)
+corps = ('<p>ALCIDE, <i>riant</i>.—Je ne sais pas.</p><p>JULIEN, <i>riant</i>.—Ceci est une autre affaire.</p>'
+         '<p>FRÉDÉRIC, <i>riant</i>.—Tant pis.</p>')
+out, body = apply(corps, [{'doc': 'ch.xhtml', 'chercher': 'riant', 'remplacer': 'ricanant',
+                           'avant': 'JULIEN,', 'apres': '.—Ceci est une autre affaire'}])
+check('nœud répété atteint par son voisinage', body and 'JULIEN, <i>ricanant</i>' in body
+      and 'ALCIDE, <i>riant</i>' in body and 'FRÉDÉRIC, <i>riant</i>' in body)
+out, body = apply(corps, [{'doc': 'ch.xhtml', 'chercher': 'riant', 'remplacer': 'ricanant'}])
+check('nœud répété sans voisinage toujours refusé', body and 'ricanant' not in body)
+
 # motif non unique → rejeté (≥8 chars pour dépasser le filtre de longueur)
 out, body = apply('<p>le petit chat. le petit chat dort</p>',
                   [{'doc': 'ch.xhtml', 'chercher': 'le petit chat', 'remplacer': 'le grand chat'}])
