@@ -94,11 +94,13 @@ def edit_distance(a, b, cap=20):
 
 # ---------------------------------------------------------------- extraction EPUB
 class Tok:
-    __slots__ = ('s', 'k', 'kind', 'doc', 'seg', 'off', 'end', 'para', 'chap', 'mark')
+    __slots__ = ('s', 'k', 'kind', 'doc', 'seg', 'off', 'end', 'para', 'chap', 'mark', 'head')
 
-    def __init__(self, s, kind, doc=None, seg=None, off=None, end=None, para=None, chap=None, mark=None):
+    def __init__(self, s, kind, doc=None, seg=None, off=None, end=None, para=None, chap=None, mark=None,
+                 head=False):
         self.s, self.k, self.kind = s, key(s), kind
         self.doc, self.seg, self.off, self.end, self.para, self.chap, self.mark = doc, seg, off, end, para, chap, mark
+        self.head = head
 
 
 def tokenize_text(t):
@@ -184,7 +186,7 @@ def extract_epub(path):
             segs[j] = t
             para_buf.append((j, t))
             for s, kind, a, b in tokenize_text(t):
-                toks.append(Tok(s, kind, doc, j, a, b, para, chap))
+                toks.append(Tok(s, kind, doc, j, a, b, para, chap, head=in_head))
         close_para()
         segments[doc] = segs
     return toks, segments
@@ -364,6 +366,51 @@ class Lexicon:
                 ok = False
         self.cache[k] = ok
         return ok
+
+
+def label_colon(A, segments, i):
+    """A[i] est-il le deux-points qui suit un nom de locuteur en tête de paragraphe ?
+    Convention de numérisation (Project Gutenberg : « <i>Thérèse:</i>—Pourquoi… ») là où
+    l'édition imprime le nom sur sa ligne, suivi d'un point : « THÉRÈSE. »."""
+    t = A[i]
+    if t.s != ':':
+        return False
+    n, j = 0, i - 1          # « Henri, avec surprise et riant: » : jusqu'à dix mots et des virgules
+    while j >= 0 and A[j].para == t.para and A[j].doc == t.doc:
+        if A[j].kind == 'w':
+            n += 1
+        elif A[j].s != ',' and not (A[j].s == '.' and j > 0 and A[j - 1].s in ('M', 'MM')):
+            return False
+        if n > 10:
+            return False
+        j -= 1
+    first = A[j + 1]
+    if n == 0 or not first.s[:1].isupper():
+        return False
+    rest = segments[t.doc][t.seg][t.end:t.end + 3].lstrip(' \u202f\xa0')
+    if rest.startswith(('—', '–', '-')):
+        return True
+    nxt = A[i + 1] if i + 1 < len(A) else None
+    # le nom occupe seul son segment (« <i>Henri, riant:</i> ») ou son paragraphe
+    return (rest == '' and first.seg == t.seg) or nxt is None or nxt.para != t.para
+
+
+def presentation(A, segments, i1, i2, ours, theirs_list):
+    """Divergence qui ne touche pas le texte courant : « titre », « legende » (légende
+    d'illustration que le témoin intercale, « … Page 57 ») ou « locuteur » (seul change le
+    signe qui suit un nom de locuteur) ; sinon None."""
+    span = A[i1:i2] if i2 > i1 else A[max(0, i1 - 1):i1 + 1]
+    if span and all(t.head for t in span):
+        return 'titre'
+    for r in theirs_list:
+        ks = [t.k for t in r]
+        if any(ks[k] == 'page' and ks[k + 1].isdigit() for k in range(len(ks) - 1)):
+            return 'legende'
+    if any(label_colon(A, segments, k) for k in range(max(0, i1 - 1), min(len(A), i2 + 1))):
+        wo = letters_only(''.join(t.k for t in ours if t.kind == 'w'))
+        if any(letters_only(''.join(t.k for t in r if t.kind == 'w')) == wo for r in theirs_list):
+            return 'locuteur'
+    return None
 
 
 def epoque(w):
@@ -652,6 +699,11 @@ def main():
             rec['verdict'] = 'soutenu'
             for n in differing:
                 stats[f'bruit_{natures[n]}'] += 1
+        elif presentation(A, segments, i1, i2, ours, [readings[n] for n in differing]):
+            # titres, légendes, noms de locuteurs : relevés et comptés, jamais corrigés ici
+            rec['classe'] = presentation(A, segments, i1, i2, ours, [readings[n] for n in differing])
+            rec['niveau'] = 'presentation'
+            stats[f"presentation_{rec['classe']}"] += 1
         else:
             if len(differing) >= 2:
                 r = [readings[n] for n in differing]
