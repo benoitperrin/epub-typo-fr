@@ -21,7 +21,19 @@
   "ec_err": 0,
   "apos_d": 0,
   "apos_c": 2588,
-  "chars": 287319
+  "chars": 287319,
+  "collation_2026_09": {
+   "juin": {
+    "total": 101,
+    "confirmees_par_les_temoins": 97,
+    "confirmees_a_la_relecture": 4,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 45,
+   "n2_ouverts": 0,
+   "epub_md5": "d274ead2e4871b84cc3f0ccced3eb0be",
+   "epubcheck_erreurs": 0
+  }
  },
  {
   "id": 720,
@@ -69,7 +81,19 @@
   "ec_err": 0,
   "apos_d": 1,
   "apos_c": 3662,
-  "chars": 302076
+  "chars": 302076,
+  "collation_2026_09": {
+   "juin": {
+    "total": 65,
+    "confirmees_par_les_temoins": 58,
+    "confirmees_a_la_relecture": 6,
+    "infirmees": 1
+   },
+   "corrections_nouvelles_appliquees": 67,
+   "n2_ouverts": 0,
+   "epub_md5": "496913b68ae49c0a1d37379bae05fd9f",
+   "epubcheck_erreurs": 0
+  }
  },
  {
   "id": 724,
@@ -81,7 +105,19 @@
   "ec_err": 0,
   "apos_d": 1,
   "apos_c": 2043,
-  "chars": 195059
+  "chars": 195059,
+  "collation_2026_09": {
+   "juin": {
+    "total": 4,
+    "confirmees_par_les_temoins": 4,
+    "confirmees_a_la_relecture": 0,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 14,
+   "n2_ouverts": 0,
+   "epub_md5": "cab42d9412d789d22256129e29ec3098",
+   "epubcheck_erreurs": 0
+  }
  },
  {
   "id": 725,

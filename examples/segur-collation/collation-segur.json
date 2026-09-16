@@ -1,0 +1,113 @@
+{
+ "_commentaire": "Collation des 13 romans contre témoins (septembre 2026) : par volume, témoins, sort des corrections de juin, corrections nouvelles, cas ouverts, empreintes.",
+ "volumes": [
+  {
+   "id": 719,
+   "titre": "Nouveaux contes de fées pour les petits enfants",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Librairie Hachette 1896)",
+     "couverture": 0.9928
+    },
+    "ia": {
+     "edition": "Internet Archive (Hachette 1917)",
+     "couverture": 1.0
+    }
+   },
+   "juin": {
+    "total": 101,
+    "confirmees_par_les_temoins": 97,
+    "confirmees_a_la_relecture": 4,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 45,
+   "entrees_ocr_apply": 45,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_garder": 4,
+    "N0_garder": 20,
+    "N1_modifier": 1,
+    "N1_garder": 12,
+    "N1_veto": 1,
+    "N2_corriger": 7,
+    "N2_laisser": 16,
+    "E_corriger": 5
+   },
+   "source_md5": "bdeb4e156dc3c871ba2c33c6b8b871d1",
+   "epub_md5": "d274ead2e4871b84cc3f0ccced3eb0be",
+   "epubcheck_erreurs": 0
+  },
+  {
+   "id": 723,
+   "titre": "Les Mémoires d'un âne",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1894)",
+     "couverture": 1.0
+    },
+    "ia": {
+     "edition": "Internet Archive (Édito-Service, Genève, s. d.)",
+     "couverture": 1.0
+    }
+   },
+   "juin": {
+    "total": 65,
+    "confirmees_par_les_temoins": 58,
+    "confirmees_a_la_relecture": 6,
+    "infirmees": 1
+   },
+   "corrections_nouvelles_appliquees": 67,
+   "entrees_ocr_apply": 64,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_autre": 1,
+    "J_garder": 6,
+    "N0_garder": 34,
+    "N0_veto": 3,
+    "N1_garder": 22,
+    "N2_corriger": 11,
+    "N2_laisser": 6
+   },
+   "source_md5": "6b70f1884981b6369787a0e38430bce5",
+   "epub_md5": "496913b68ae49c0a1d37379bae05fd9f",
+   "epubcheck_erreurs": 0
+  },
+  {
+   "id": 724,
+   "titre": "Les malheurs de Sophie",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1929)",
+     "couverture": 0.9934
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1880 (13e édition))",
+     "couverture": 0.9983
+    }
+   },
+   "juin": {
+    "total": 4,
+    "confirmees_par_les_temoins": 4,
+    "confirmees_a_la_relecture": 0,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 14,
+   "entrees_ocr_apply": 14,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "N0_garder": 2,
+    "N0_veto": 2,
+    "N1_garder": 5,
+    "N2_laisser": 14,
+    "N2_corriger": 5,
+    "E_corriger": 2
+   },
+   "source_md5": "994c79636c558b5ab758b43785f9ee16",
+   "epub_md5": "cab42d9412d789d22256129e29ec3098",
+   "epubcheck_erreurs": 0
+  }
+ ]
+}
