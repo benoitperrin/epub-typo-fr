@@ -413,6 +413,47 @@ def presentation(A, segments, i1, i2, ours, theirs_list):
     return None
 
 
+# Homographes que seul l'accent distingue : l'accent n'y est pas une graphie, c'est le sens.
+HOMOGRAPHES = {('du', 'dû'), ('sur', 'sûr'), ('mur', 'mûr'), ('a', 'à'), ('ou', 'où'), ('la', 'là'),
+               ('des', 'dès'), ('jeune', 'jeûne'), ('tache', 'tâche'), ('cote', 'côte'),
+               ('pecher', 'pécher'), ('roder', 'rôder'), ('foret', 'forêt'), ('cru', 'crû'),
+               ('crue', 'crûe'), ('mat', 'mât'), ('pate', 'pâte'), ('boite', 'boîte'),
+               ('chasse', 'châsse'), ('matin', 'mâtin'), ('age', 'âge'), ('peche', 'pêche')}
+
+
+def accent_kind(x, y):
+    """Écart d'accent entre notre mot x et la leçon y (mêmes lettres, même longueur) :
+    « capitale » quand seule une majuscule perd son accent (Elisabeth / Élisabeth) ;
+    « grammatical » quand l'accent change le mot (eut / eût, du / dû, ou / où) ; sinon None
+    (collége / collège et autres graphies : on ne touche pas)."""
+    x, y = nfc(x).replace("'", '’'), nfc(y).replace("'", '’')
+    if len(x) != len(y) or x.lower() == y.lower() or strip_accents(x.lower()) != strip_accents(y.lower()):
+        return None
+    diffs = [(cx, cy) for cx, cy in zip(x, y) if cx.lower() != cy.lower()]
+    if all(cx.isupper() and strip_accents(cx) == cx for cx, _ in diffs):
+        return 'capitale'
+    a, b = key(x), key(y)
+    if (a, b) in HOMOGRAPHES or (b, a) in HOMOGRAPHES:
+        return 'grammatical'
+    # passé simple / subjonctif imparfait : eut / eût, fit / fît, vint / vînt
+    m = re.fullmatch(r"(?:.*’)?(\w*?)([uûiî])(n?t)", a if len(diffs) == 1 else '')
+    if m and len(diffs) == 1 and strip_accents(b[-3:]) == strip_accents(a[-3:]) and b[-1] == 't' and (
+            'û' in b[-3:] or 'î' in b[-3:] or 'û' in a[-3:] or 'î' in a[-3:]):
+        return 'grammatical'
+    return None
+
+
+def transfer_accents(x, y):
+    """Notre mot x, avec les accents de la leçon y (même longueur) et notre casse."""
+    out = []
+    for cx, cy in zip(x, nfc(y)):
+        if cx.lower() != cy.lower() and strip_accents(cx.lower()) == strip_accents(cy.lower()):
+            out.append(cy.upper() if cx.isupper() else cy.lower())
+        else:
+            out.append(cx)
+    return ''.join(out)
+
+
 def epoque(w):
     k = key(w)
     return any(r.search(k) for r in EPOQUE_RE)
@@ -718,7 +759,15 @@ def main():
             theirs = readings[ref]
             # niveau
             level, action, raison = 'N2', None, ''
-            if nat in ('graphie',):
+            ak = None
+            if nat in ('graphie', 'accent') and cons and len(differing) >= 2 and len(ours) == 1 \
+                    and len(theirs) == 1 and all(len(readings[n]) == 1 for n in differing):
+                ak = accent_kind(ours[0].s, theirs[0].s)
+            if ak == 'capitale':
+                level, action, raison = 'N0', 'accent', 'capitale accentuée (Lacroux)'
+            elif ak == 'grammatical':
+                level, action, raison = 'N1', 'accent', 'accent grammatical'
+            elif nat in ('graphie',):
                 level = 'laisse'
             elif nat == 'ocr_temoin':
                 level = 'bruit'
@@ -754,7 +803,9 @@ def main():
             stats[f'niveau_{level}'] += 1
             stats[f'nature_{nat}'] += 1
             if action:
-                if action == 'remplacer':
+                if action == 'accent':
+                    new = transfer_accents(ours[0].s, theirs[0].s)
+                elif action == 'remplacer':
                     wt = [t for t in theirs]
                     if nat == 'ponctuation':
                         # ne remplacer que les signes : on reconstruit à partir du témoin
