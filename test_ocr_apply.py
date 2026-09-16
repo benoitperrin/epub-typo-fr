@@ -80,6 +80,18 @@ out, body = apply('<p>le chat noir dort sur le toit de la maison</p>',
                    {'doc': 'ch.xhtml', 'chercher': 'chat noir dort sur', 'remplacer': 'chat gris dort sur'}])
 check('changements en conflit rejetés', body and 'le chat noir dort' in body and '2 rejetées' in out)
 
+# insertion pure longue : refusée par défaut, acceptée avec --insertion-max
+omis = [{'doc': 'ch.xhtml', 'chercher': '—Pour prévenir les gendarmes.',
+         'remplacer': '—Pour prévenir les gendarmes et tâcher de ravoir les ânes.'}]
+out, body = apply('<p>—Pour prévenir les gendarmes.</p>', omis)
+check('insertion longue refusée par défaut', body and 'ravoir' not in body and '1 rejetées' in out)
+out, body = apply('<p>—Pour prévenir les gendarmes.</p>', omis, ['--insertion-max', '60'])
+check('insertion longue acceptée avec --insertion-max', body and 'gendarmes et tâcher de ravoir les ânes.' in body)
+out, body = apply('<p>—Pour prévenir les gendarmes.</p>',
+                  [{'doc': 'ch.xhtml', 'chercher': '—Pour prévenir les gendarmes.',
+                    'remplacer': '—Pour avertir les brigadiers et tâcher de ravoir les ânes.'}], ['--insertion-max', '60'])
+check('--insertion-max ne couvre pas une réécriture', body and 'avertir' not in body)
+
 # motif non unique → rejeté (≥8 chars pour dépasser le filtre de longueur)
 out, body = apply('<p>le petit chat. le petit chat dort</p>',
                   [{'doc': 'ch.xhtml', 'chercher': 'le petit chat', 'remplacer': 'le grand chat'}])

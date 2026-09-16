@@ -15,7 +15,7 @@ avec contexte, pour relecture humaine.
 Usage:
   python3 ocr_apply.py in.epub out.epub corrections.jsonl --report diff.md
 """
-import sys, re, json, zipfile, html, argparse
+import sys, os, re, json, zipfile, html, argparse
 from collections import defaultdict
 
 TAG_RE = re.compile(r'(<[^>]+>|<!--.*?-->)', re.S)
@@ -165,6 +165,9 @@ def main():
     ap.add_argument('--max-edit', type=int, default=12)
     ap.add_argument('--max-word-delta', type=int, default=2)
     ap.add_argument('--budget-pct', type=float, default=0.2)
+    ap.add_argument('--insertion-max', type=int, default=0,
+                    help="accepter une insertion pure jusqu'à N caractères (restitution d'une omission "
+                         "attestée par collation) ; 0 = bornes ordinaires")
     args = ap.parse_args()
 
     corrections = defaultdict(list)
@@ -220,6 +223,15 @@ def main():
                 pure_deletion = norm_spaces(rp) in norm_spaces(ch) and len(rp) < len(ch)
                 max_ed = 30 if pure_deletion else args.max_edit
                 max_wd = 6 if pure_deletion else args.max_word_delta
+                # Restituer un membre de phrase que la copie a sauté (« pour prévenir les
+                # gendarmes ‸ et tâcher de ravoir les ânes ») : une insertion pure, rien
+                # d'enlevé. Permise au-delà des bornes seulement sur demande
+                # (--insertion-max), quand les corrections viennent d'une collation.
+                pre = len(os.path.commonprefix([ch, rp]))
+                suf = len(os.path.commonprefix([ch[pre:][::-1], rp[pre:][::-1]]))
+                if args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch) \
+                        and len(rp) - len(ch) <= args.insertion_max:
+                    max_ed, max_wd = len(rp) - len(ch), 12
                 # Un motif court est ambigu… sauf quand il occupe À LUI SEUL un
                 # nœud de texte : sa position est alors déterminée par le balisage,
                 # pas par le voisinage. Fabrication Word→Calibre courante —
