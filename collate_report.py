@@ -92,10 +92,10 @@ def main():
         if r['bilan'] == 'confirmée' and 'correction' not in r:
             continue
         items.append({'id': new_id('J'), 'type': 'juin', **r})
-    for lvl in ('N0', 'N1') + N2_LEVELS:
+    for lvl in ('N0', 'N1') + N2_LEVELS + ('laisse',):
         for s in sites:
             if s.get('niveau') == lvl:
-                prefix = 'N2' if lvl.startswith('N2') else lvl
+                prefix = {'laisse': 'L'}.get(lvl, 'N2' if lvl.startswith('N2') else lvl)
                 items.append({'id': new_id(prefix), 'type': 'site', **s})
 
     # ---- rapport
@@ -217,12 +217,13 @@ def main():
     # ---- E. ce qu'on laisse
     w('## E. Ce qu’on laisse')
     w('')
-    laisse = [s for s in sites if s.get('niveau') == 'laisse']
+    laisse = [it for it in items if it['id'].startswith('L-')]
     if laisse:
-        w('Graphies d’époque ou choix d’édition, jamais « modernisés » par la collation :')
+        w('Graphies d’époque ou choix d’édition, jamais « modernisés » par la collation (chacune est '
+          'néanmoins relue : une coquille classée ici par erreur se corrige) :')
         w('')
-        for s in laisse:
-            w(f'- « {md(s["nous"])} » ({lecons(s["temoins"])}) : …{md(s["avant"][-40:])} ⟦·⟧ {md(s["apres"][:30])}…')
+        for it in laisse:
+            w(f'- {it["id"]} « {md(it["nous"])} » ({lecons(it["temoins"])}) : …{md(it["avant"][-40:])} ⟦·⟧ {md(it["apres"][:30])}…')
         w('')
     if pres:
         w('Écarts de présentation, comptés et non corrigés : '
