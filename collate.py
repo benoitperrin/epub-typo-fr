@@ -43,8 +43,9 @@ BLOCK_TAGS = {'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'br', 'td', 
               'blockquote', 'hr', 'table', 'dd', 'dt', 'body', 'html', 'section', 'figure'}
 HEAD_TAGS = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
 
-# mot (lettres, apostrophes et traits d'union intérieurs) | nombre | ponctuation alignée | reste
-TOK_RE = re.compile(r"[^\W\d_]+(?:['’ʼ][^\W\d_]+|-[^\W\d_]+)*|\d+|\.(?:\s*\.)+|[.,;:!?]|[^\s\w]")
+# numéro (« N° », « No 3 ») | mot (lettres, apostrophes et traits d'union intérieurs) | nombre |
+# ponctuation alignée | reste
+TOK_RE = re.compile(r"[Nn][°º]|[Nn]o(?=\s*\d)|[^\W\d_]+(?:['’ʼ][^\W\d_]+|-[^\W\d_]+)*|\d+|\.(?:\s*\.)+|[.,;:!?]|[^\s\w]")
 ALIGNED_PUNCT = set('.,;:!?')
 ROMAN = re.compile(r'^(?:CHAPITRE\s+)?([IVXLC]+)(?:\s*[.—–\-:]\s*|\s+|$)', re.I)
 BIG_GAP = 60          # au-delà : zone non couverte (chapitre absent, boilerplate), pas une divergence
@@ -66,6 +67,8 @@ def nfc(s):
 def key(s):
     s = nfc(s).lower().replace('’', "'").replace('ʼ', "'").replace('œ', 'oe').replace('æ', 'ae')
     s = s.replace('ﬁ', 'fi').replace('ﬂ', 'fl')
+    if s in ('n°', 'nº'):
+        s = 'no'            # « N° 3 » : le « o » supérieur que les témoins rendent « No 3 »
     return s
 
 
@@ -190,22 +193,17 @@ def extract_epub(path):
 def load_witness(path):
     """Texte témoin → tokens ; lignes « ### » (chapitre) et « #### » (vue) = marqueurs, non alignés."""
     raw = open(path, encoding='utf-8', errors='replace').read()
+    # césures de fin de ligne d'un OCR brut (« proba- ⏎ blement », Internet Archive) : recollées
+    # avant de découper en lignes, sinon chaque mot coupé fait deux fausses divergences
+    raw = re.sub(r"([^\W\d_])[-¬][ \t]*\n[ \t]*([^\W\d_])", r"\1\2", raw)
     toks, mark = [], None
     for block in raw.split('\n'):
         if block.startswith('### ') or block.startswith('#### '):
             mark = block.lstrip('#').strip()
             continue
-        # césures de fin de ligne (OCR brut) : « pour- raient » ne survient pas ici car on
-        # travaille ligne par ligne ; on recolle plus bas au niveau du texte complet.
         for s, kind, a, b in tokenize_text(block):
             toks.append(Tok(s, kind, mark=mark))
     return toks
-
-
-def dehyphenate_file(path):
-    t = open(path, encoding='utf-8', errors='replace').read()
-    t = re.sub(r"([^\W\d_])-\n[ \t]*([^\W\d_])", r"\1\2", t)
-    return t
 
 
 # ---------------------------------------------------------------- alignement
