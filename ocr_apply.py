@@ -166,7 +166,7 @@ def main():
     ap.add_argument('--max-word-delta', type=int, default=2)
     ap.add_argument('--budget-pct', type=float, default=0.2)
     ap.add_argument('--insertion-max', type=int, default=0,
-                    help="accepter une insertion pure jusqu'à N caractères et 30 mots (restitution d'une "
+                    help="accepter une insertion pure jusqu'à N caractères (restitution d'une "
                          "omission attestée par collation) ; 0 = bornes ordinaires")
     args = ap.parse_args()
 
@@ -232,7 +232,8 @@ def main():
                 insertion = bool(args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch)
                                  and len(rp) - len(ch) <= args.insertion_max)
                 if insertion:
-                    max_ed, max_wd = len(rp) - len(ch), 30
+                    # la borne est en caractères : une phrase restituée de trente-deux mots passe
+                    max_ed, max_wd = len(rp) - len(ch), len(rp.split())
                 # Un motif court est ambigu… sauf quand il occupe À LUI SEUL un
                 # nœud de texte : sa position est alors déterminée par le balisage,
                 # pas par le voisinage. Fabrication Word→Calibre courante —
