@@ -56,7 +56,7 @@ EPOQUE_RE = [re.compile(p) for p in (
     r"^très-", r"^grand'", r"ûment$", r"^long-temps$", r"^remerc[iî]ments?$",
     r"(?:ll|si|pi|sacril|privil|coll)[ée]ge?s?$", r"^r[ée]glement", r"^av[ée]nement", r"^[ée]v[ée]nement",
     r"^po[ëe](?:te|me|sie)s?$", r"^(?:enfans|parens|momens|sentimens|tems|savans|talens)$",
-    r"^aujourd'hui$", r"^jusques", r"^encor$",
+    r"^aujourd'hui$", r"^jusques", r"^encor$", r"^(?:compl|discr|indiscr|secr|concr)[éè]tement$",
 )]
 
 
@@ -869,8 +869,15 @@ def main():
                     jt = ''.join(keys([t for t in theirs if t.kind == 'w']))
                     if strip_accents(jo) == jo and jt != jo and not lex.known(jo):
                         level, action, raison = 'N1', 'remplacer', 'accent avalé'
-                    else:
+                    elif any(epoque(t.s) for t in list(ours) + list(theirs) if t.kind == 'w'):
                         level = 'laisse'          # collége/collège : graphie d'époque ou choix d'édition
+                    elif len(ours) == 1 and all(len(readings[n]) == 1 and keys(readings[n]) == keys(theirs)
+                                                for n in differing):
+                        # « son teint blanc et rosé », « se jetant de coté » : deux témoins
+                        # d'accord sur un mot que seul l'accent sépare du nôtre, hors graphie d'époque
+                        level, action, raison = 'N1', 'accent', 'accent fautif (deux témoins)'
+                    else:
+                        level = 'N2'
                 elif nat == 'lecture' and all(keys(readings[n]) == keys(theirs) for n in differing):
                     level, action, raison = 'N1', 'remplacer', 'lettre substituée (deux témoins)'
                 elif nat == 'ajout_nous' and len(ours) == 1 and prev_tok is not None and prev_tok.k == ours[0].k:
