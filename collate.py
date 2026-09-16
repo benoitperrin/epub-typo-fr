@@ -587,6 +587,40 @@ def unaligned_sign_missing(A, segments, i1, i2, wits):
     return False
 
 
+def recase_span(A, segments, i1, i2, wits):
+    """Quand changer la ponctuation change la casse du mot suivant et que les témoins s'accordent
+    sur cette casse : (doc, seg, début, fin, blanc, mot recasé), du mot qui précède le site à la fin
+    du mot suivant ; sinon None (signe non aligné entre les deux, segments différents, témoins
+    en désaccord sur la casse)."""
+    if i2 >= len(A) or i1 == 0:
+        return None
+    prev, nxt = A[i1 - 1], A[i2]
+    if prev.doc != nxt.doc or prev.seg != nxt.seg:
+        return None
+    upper = set()
+    for w in wits:
+        j = w.jend[i2 - 1] if i2 > i1 else w.jstart[i1]
+        if j >= len(w.B) or w.B[j].k != nxt.k:
+            return None
+        upper.add(w.B[j].s[:1].isupper())
+    if len(upper) != 1:
+        return None
+    up = upper.pop()
+    if nxt.s[:1].isupper() == up:
+        return None
+    text = segments[nxt.doc][nxt.seg]
+    gap = text[prev.end:nxt.off]
+    signs = ''.join(t.s for t in A[i1:i2])
+    blanc = gap
+    for c in signs:
+        blanc = blanc.replace(c, '', 1)
+    if blanc.strip(' \u202f\xa0\n'):
+        return None                      # un autre signe (« — », « » ») sépare les deux mots
+    blanc = blanc.lstrip(' \u202f\xa0') or ' '
+    word = (nxt.s[0].upper() if up else nxt.s[0].lower()) + nxt.s[1:]
+    return nxt.doc, nxt.seg, prev.end, nxt.end, blanc, word
+
+
 def punct_case_ok(ours, theirs, next_tok):
     """Changer ces signes laisserait-il la capitale du mot suivant juste ?"""
     if next_tok is None:
@@ -619,14 +653,17 @@ def punct_pattern(ours, theirs, prev_tok, next_tok):
 
 
 # ---------------------------------------------------------------- corrections
-def make_correction(site, toks_all, segments, new_text, raison, source, level, nb='\u202f'):
+def make_correction(site, toks_all, segments, new_text, raison, source, level, nb='\u202f', span=None):
     """Construit une entrée {doc, chercher, remplacer, raison} pour ocr_apply.py.
     Les espaces suivent la typographie du livre : l'espace qui précède un signe ou un mot
     supprimé part avec lui, un « ; » inséré reçoit l'espace insécable `nb`, un mot inséré
     son espace ordinaire."""
     a, b = site['i1'], site['i2']
     A = site['_A']
-    if a < b:
+    if span:
+        doc, seg, start, end = span
+        a, b = -1, -2                     # position donnée : pas d'ajustement d'espace
+    elif a < b:
         first, last = A[a], A[b - 1]
         doc, seg = first.doc, first.seg
         if last.doc != doc or last.seg != seg:
@@ -640,7 +677,9 @@ def make_correction(site, toks_all, segments, new_text, raison, source, level, n
             return None, 'insertion en frontière de segment'
         start = end = A[a - 1].end if a > 0 else A[a].off
     text = segments[doc][seg]
-    if new_text == '' or new_text[:1] in ',.':
+    if span:
+        pass
+    elif new_text == '' or new_text[:1] in ',.':
         while start > 0 and text[start - 1] in ' \u202f\xa0':
             start -= 1
     elif new_text[:1] in ';:!?' and start > 0 and text[start - 1] not in ' \u202f\xa0':
@@ -855,9 +894,14 @@ def main():
                 if pat and cons and all(keys(readings[n]) == keys(theirs) for n in differing):
                     level, action, raison = 'N0', 'remplacer', pat
                 elif cons and len(differing) >= 2 and all(keys(readings[n]) == keys(theirs) for n in differing) \
-                        and punct_case_ok(ours, theirs, next_tok) \
-                        and not unaligned_sign_missing(A, segments, i1, i2, [witnesses[n] for n in differing]):
+                        and not unaligned_sign_missing(A, segments, i1, i2, [witnesses[n] for n in differing]) \
+                        and punct_case_ok(ours, theirs, next_tok):
                     level, action, raison = 'N0', 'remplacer', 'ponctuation (deux témoins)'
+                elif cons and len(differing) >= 2 and all(keys(readings[n]) == keys(theirs) for n in differing) \
+                        and not unaligned_sign_missing(A, segments, i1, i2, [witnesses[n] for n in differing]) \
+                        and recase_span(A, segments, i1, i2, [witnesses[n] for n in differing]):
+                    # « Il est neuf heures. Madame. » / « heures, madame » : le signe et la casse vont ensemble
+                    level, action, raison = 'N0', 'recase', 'ponctuation et casse du mot suivant (deux témoins)'
                 else:
                     level = 'N2-ponct' if not cons else 'N2-ponct-consensus'
             elif cons and len(differing) >= 2:
@@ -873,9 +917,16 @@ def main():
                         level = 'laisse'          # collége/collège : graphie d'époque ou choix d'édition
                     elif len(ours) == 1 and all(len(readings[n]) == 1 and keys(readings[n]) == keys(theirs)
                                                 for n in differing):
-                        # « son teint blanc et rosé », « se jetant de coté » : deux témoins
-                        # d'accord sur un mot que seul l'accent sépare du nôtre, hors graphie d'époque
-                        level, action, raison = 'N1', 'accent', 'accent fautif (deux témoins)'
+                        x, y = nfc(ours[0].s).replace("'", '’'), nfc(theirs[0].s).replace("'", '’')
+                        if len(x) == len(y):
+                            # « son teint blanc et rosé », « se jetant de coté » : deux témoins
+                            # d'accord sur un mot que seul l'accent sépare du nôtre, hors graphie d'époque
+                            level, action, raison = 'N1', 'accent', 'accent fautif (deux témoins)'
+                        elif x.replace('’', '') == y.replace('’', ''):
+                            # « et il ma dit » / « m’a dit » : l'apostrophe perdue change le mot
+                            level, action, raison = 'N1', 'remplacer', 'apostrophe (deux témoins)'
+                        else:
+                            level = 'N2'
                     else:
                         level = 'N2'
                 elif nat == 'lecture' and all(keys(readings[n]) == keys(theirs) for n in differing):
@@ -902,7 +953,14 @@ def main():
             stats[f'niveau_{level}'] += 1
             stats[f'nature_{nat}'] += 1
             if action:
-                if action == 'accent':
+                span = None
+                if action == 'recase':
+                    doc_, seg_, start_, end_, blanc_, word_ = recase_span(A, segments, i1, i2,
+                                                                          [witnesses[n] for n in differing])
+                    signs_ = render([t for t in theirs if t.kind == 'p'], nb)
+                    new = signs_ + blanc_ + word_
+                    span = (doc_, seg_, start_, end_)
+                elif action == 'accent':
                     new = transfer_accents(ours[0].s, theirs[0].s)
                 elif action == 'remplacer' and nat == 'ponctuation':
                     # ne remplacer que les signes : on reconstruit à partir du témoin
@@ -916,7 +974,7 @@ def main():
                 site = {'i1': i1, 'i2': i2, '_A': A}
                 temoins_txt = ', '.join(f"{n} ({editions.get(n, '?')}) : « {surf(readings[n])} »" for n in differing)
                 corr, why = make_correction(site, toks, segments, new, f'{raison} — {temoins_txt}',
-                                            f'collation {level} ({"+".join(differing)})', level, nb)
+                                            f'collation {level} ({"+".join(differing)})', level, nb, span)
                 if corr:
                     corr['i1'] = i1
                     corrections.append(corr)
