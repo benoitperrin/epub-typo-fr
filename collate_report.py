@@ -20,6 +20,13 @@ import os, re, json, argparse, difflib
 from collections import Counter
 
 N2_LEVELS = ('N2', 'N2-divergent', 'N2-seul', 'N2-ponct', 'N2-ponct-consensus')
+# Familles mécaniques : même règle, même preuve (deux témoins d'accord mot pour mot). Au-delà de
+# FAMILLE_MIN items, la relecture juge la famille sur un échantillon régulier (un sur dix, huit au
+# moins) au lieu de chaque item ; elle garde le droit d'écarter n'importe quel item.
+FAMILLES = {'N0': None,  # toutes les règles N0
+            'N1': {'accent fautif (deux témoins)', 'apostrophe (deux témoins)', 'accent grammatical',
+                   'accent avalé'}}
+FAMILLE_MIN = 8
 NIVEAU_LIBELLE = {
     'N2': 'deux témoins d’accord, mais pas sur une faute que la règle sait trancher',
     'N2-divergent': 'les témoins divergent entre eux',
@@ -96,7 +103,24 @@ def main():
         for s in sites:
             if s.get('niveau') == lvl:
                 prefix = {'laisse': 'L'}.get(lvl, 'N2' if lvl.startswith('N2') else lvl)
-                items.append({'id': new_id(prefix), 'type': 'site', **s})
+                it = {'id': new_id(prefix), 'type': 'site', **s}
+                raison = (s.get('correction') or {}).get('raison', '').split(' — ')[0]
+                if lvl in FAMILLES and raison and (FAMILLES[lvl] is None or raison in FAMILLES[lvl]):
+                    it['famille'] = f'{lvl} · {raison}'
+                items.append(it)
+    familles = {}
+    for it in items:
+        if it.get('famille'):
+            familles.setdefault(it['famille'], []).append(it)
+    for f, membres in list(familles.items()):
+        if len(membres) < FAMILLE_MIN:
+            for it in membres:
+                del it['famille']
+            del familles[f]
+            continue
+        k = max(1, len(membres) // max(FAMILLE_MIN, len(membres) // 10))
+        for n, it in enumerate(membres):
+            it['echantillon'] = (n % k == 0)
 
     # ---- rapport
     L = []
@@ -173,6 +197,18 @@ def main():
         w('</details>')
         w('')
 
+    if familles:
+        w('## Relecture par familles')
+        w('')
+        w('Les familles mécaniques de plus de huit items sont jugées sur un échantillon régulier '
+          '(marqué ★ ci-dessous) ; tout item peut encore être écarté.')
+        w('')
+        w('| Famille | Items | Échantillon |')
+        w('|---|---:|---|')
+        for f, membres in familles.items():
+            w(f'| {f} | {len(membres)} | {", ".join(it["id"] for it in membres if it["echantillon"])} |')
+        w('')
+
     # ---- B. corrections proposées
     for lvl, head in (('N0', 'B. N0 — typographie et ponctuation attestées'),
                       ('N1', 'C. N1 — restitutions attestées')):
@@ -192,7 +228,8 @@ def main():
             else:
                 av, apr = f'…{it["avant"][-40:]} **{it["nous"]}** {it["apres"][:30]}…', f'✗ {it.get("non_applicable", "")}'
             raison = (c['raison'].split(' — ')[0] if c else '')
-            w(f'| {it["id"]} | {md(it.get("chap") or "")} | {md(av)} | {md(apr)} | {lecons(it["temoins"])} | {md(raison)} |')
+            star = ' ★' if it.get('echantillon') else ''
+            w(f'| {it["id"]}{star} | {md(it.get("chap") or "")} | {md(av)} | {md(apr)} | {lecons(it["temoins"])} | {md(raison)} |')
         w('')
 
     # ---- D. N2
