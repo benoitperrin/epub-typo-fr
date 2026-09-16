@@ -8,13 +8,16 @@ anti-robot (ALTCHA) ; l'API ALTO répond directement, avec en prime la structure
 (blocs, césures résolues, légendes et pieds de page identifiés).
 
 Usage :
-  python3 witness_gallica.py fetch bpt6k6577498m dossier/ [--pause 2] [--from 1] [--to N]
+  python3 witness_gallica.py fetch bpt6k6577498m dossier/ [--pause 2] [--from 1] [--to N] [--max-fail 3]
   python3 witness_gallica.py text dossier/ temoin-gallica.txt
 
 Le dossier reçoit pagination.xml + une page ALTO par vue (p0001.xml…). Reprise
 idempotente : les vues déjà présentes ne sont pas retéléchargées. Le texte de sortie
 contient un marqueur « #### vue N » par page (tolérés par collate.py, jamais alignés).
 Merci de respecter Gallica : une requête toutes les deux secondes par défaut.
+Quand Gallica refuse (429, 403, page anti-robot au lieu de l'ALTO), `--max-fail N`
+arrête tout après N vues refusées d'affilée, code de sortie 3 : on ne martèle pas
+un serveur qui a dit non, et l'appelant sait qu'il faut attendre ou changer de machine.
 """
 import sys, os, re, time, html, argparse, urllib.request
 
@@ -23,28 +26,41 @@ UA = ('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) '
 
 
 def get(url, timeout=90):
+    """(statut, corps). Réessaie ce qui peut passer plus tard ; rend le dernier statut vu."""
     req = urllib.request.Request(url, headers={'User-Agent': UA})
-    for attempt in range(5):
+    last = 0
+    for attempt in range(4):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 return r.status, r.read()
         except urllib.error.HTTPError as e:
-            if e.code in (429, 503, 502, 500):
+            last = e.code
+            if e.code == 429:
+                wait = e.headers.get('Retry-After', '')
+                time.sleep(int(wait) if wait.isdigit() else 60 * (attempt + 1))
+            elif e.code in (502, 503, 504):
                 time.sleep(30 * (attempt + 1))
-                continue
-            return e.code, b''
+            elif e.code == 500 and attempt == 0:
+                time.sleep(10)        # souvent propre au document (pas de couche OCR)
+            else:
+                return e.code, b''
         except Exception:
+            last = 0
             time.sleep(10 * (attempt + 1))
-    return 0, b''
+    return last, b''
 
 
-def fetch(ark, d, pause, p_from, p_to):
+BLOCKED = 3   # code de sortie : Gallica refuse de servir
+
+
+def fetch(ark, d, pause, p_from, p_to, max_fail=0):
     os.makedirs(d, exist_ok=True)
     pag = os.path.join(d, 'pagination.xml')
     if not os.path.exists(pag):
         st, x = get(f'https://gallica.bnf.fr/services/Pagination?ark={ark}')
         if st != 200 or b'<nbVueImages>' not in x:
-            sys.exit(f'pagination indisponible pour {ark} (HTTP {st})')
+            print(f'pagination indisponible pour {ark} (HTTP {st})', flush=True)
+            sys.exit(BLOCKED if st in (0, 200, 403, 429) else 2)
         open(pag, 'wb').write(x)
         time.sleep(pause)
     n = int(re.search(rb'<nbVueImages>(\d+)', open(pag, 'rb').read()).group(1))
@@ -52,14 +68,30 @@ def fetch(ark, d, pause, p_from, p_to):
     todo = [p for p in range(p_from, p_to + 1)
             if not os.path.exists(os.path.join(d, f'p{p:04d}.xml'))]
     print(f'{ark} : {n} vues, {len(todo)} à récupérer', flush=True)
+    refused = broken = 0
     for k, p in enumerate(todo, 1):
         st, x = get(f'https://gallica.bnf.fr/RequestDigitalElement?O={ark}&E=ALTO&Deb={p}')
         if st == 200 and b'<alto' in x:
             open(os.path.join(d, f'p{p:04d}.xml'), 'wb').write(x)
+            refused = broken = 0
         elif st == 404:
             open(os.path.join(d, f'p{p:04d}.xml'), 'wb').write(b'')   # vue sans OCR
+            refused = broken = 0
         else:
+            # rien d'écrit : une reprise redemandera la vue
             print(f'  vue {p} : HTTP {st}, on passe', flush=True)
+            if st == 500:
+                broken, refused = broken + 1, 0
+            else:
+                refused, broken = refused + 1, 0
+            if max_fail and refused >= max_fail:
+                print(f"{ark} : {refused} vues refusées d'affilée, arrêt (Gallica ne sert plus)",
+                      flush=True)
+                sys.exit(BLOCKED)
+            if max_fail and broken >= max_fail:
+                print(f"{ark} : {broken} vues en erreur 500 d'affilée, arrêt (document sans OCR ?)",
+                      flush=True)
+                sys.exit(2)
         if k % 25 == 0:
             print(f'  {k}/{len(todo)}', flush=True)
         time.sleep(pause)
@@ -151,9 +183,11 @@ def main():
     ap.add_argument('--pause', type=float, default=2.0)
     ap.add_argument('--from', dest='p_from', type=int, default=1)
     ap.add_argument('--to', dest='p_to', type=int, default=0)
+    ap.add_argument('--max-fail', type=int, default=0,
+                    help="arrêter (code 3) après N vues refusées d'affilée ; 0 = jamais")
     args = ap.parse_args()
     if args.cmd == 'fetch':
-        fetch(args.a, args.b, args.pause, args.p_from, args.p_to)
+        fetch(args.a, args.b, args.pause, args.p_from, args.p_to, args.max_fail)
     else:
         to_text(args.a, args.b)
 
