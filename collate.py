@@ -94,13 +94,14 @@ def edit_distance(a, b, cap=20):
 
 # ---------------------------------------------------------------- extraction EPUB
 class Tok:
-    __slots__ = ('s', 'k', 'kind', 'doc', 'seg', 'off', 'end', 'para', 'chap', 'mark', 'head')
+    __slots__ = ('s', 'k', 'kind', 'doc', 'seg', 'off', 'end', 'para', 'chap', 'mark', 'head', 'xb')
 
     def __init__(self, s, kind, doc=None, seg=None, off=None, end=None, para=None, chap=None, mark=None,
                  head=False):
         self.s, self.k, self.kind = s, key(s), kind
         self.doc, self.seg, self.off, self.end, self.para, self.chap, self.mark = doc, seg, off, end, para, chap, mark
         self.head = head
+        self.xb = False       # un signe non aligné (« — … ») le précède
 
 
 def tokenize_text(t):
@@ -198,13 +199,17 @@ def load_witness(path):
     # césures de fin de ligne d'un OCR brut (« proba- ⏎ blement », Internet Archive) : recollées
     # avant de découper en lignes, sinon chaque mot coupé fait deux fausses divergences
     raw = re.sub(r"([^\W\d_])[-¬][ \t]*\n[ \t]*([^\W\d_])", r"\1\2", raw)
-    toks, mark = [], None
+    toks, mark, xb = [], None, False
     for block in raw.split('\n'):
         if block.startswith('### ') or block.startswith('#### '):
             mark = block.lstrip('#').strip()
             continue
         for s, kind, a, b in tokenize_text(block):
+            if kind == 'x':
+                xb = True
+                continue
             toks.append(Tok(s, kind, mark=mark))
+            toks[-1].xb, xb = xb, False
     return toks
 
 
@@ -531,7 +536,68 @@ def compatible(r1, r2, lex):
         a, b = w1[0].k, w2[0].k
         if edit_distance(a, b) <= 2 and (not lex.known(a) or not lex.known(b)):
             return True
+    elif w1 and w2:
+        # plusieurs mots : même phrase à quelques lettres près (« apprend à » / « apprend cà »)
+        j1, j2 = letters_only(''.join(keys(w1))), letters_only(''.join(keys(w2)))
+        if edit_distance(j1, j2, cap=8) <= 2 + len(j1) // 40:
+            return True
     return False
+
+
+def label_like(reading, prev_tok):
+    """La leçon ressemble-t-elle à un nom de locuteur ou à un titre (« ? Pauline »,
+    « . I LE MARCHÉ ») plutôt qu'à un membre de phrase ? Alors ce n'est pas une omission sûre."""
+    w = [t for t in reading if t.kind == 'w']
+    if not w or len(w) > 5 or not w[0].s[:1].isupper():
+        return False
+    before = [t for t in reading if t.kind == 'p' and reading.index(t) < reading.index(w[0])]
+    return bool(before and before[-1].s in '.?!') or (not before and (prev_tok is None or prev_tok.s in '.?!'))
+
+
+def render(toks, nb):
+    """Leçon d'un témoin recomposée à la française : apostrophe courbe, l'espace insécable
+    du livre avant « ; : ! ? », aucune avant « , . »."""
+    out = ''
+    for t in toks:
+        x = nfc(t.s).replace("'", '’')
+        if t.kind == 'p' and x in ',.':
+            out += x
+        elif t.kind == 'p':
+            out += nb + x
+        else:
+            out += (' ' if out else '') + x
+    return out
+
+
+def unaligned_sign_missing(A, segments, i1, i2, wits):
+    """Le témoin met-il juste après le site un signe non aligné (« … », « — ») que nous n'avons
+    pas ? Alors retirer notre virgule ne suffirait pas (« ça, dit Finot » ≠ « ça… dit Finot »)."""
+    if i2 >= len(A):
+        return False
+    for w in wits:
+        j = w.jend[i2 - 1] if i2 > i1 else w.jstart[i1]
+        if j < len(w.B) and w.B[j].xb:
+            last = A[i2 - 1] if i2 > i1 else (A[i1 - 1] if i1 > 0 else None)
+            nxt = A[i2]
+            if last is None or last.doc != nxt.doc or last.seg != nxt.seg:
+                return True
+            if not segments[nxt.doc][nxt.seg][last.end:nxt.off].strip(' \u202f\xa0'):
+                return True
+    return False
+
+
+def punct_case_ok(ours, theirs, next_tok):
+    """Changer ces signes laisserait-il la capitale du mot suivant juste ?"""
+    if next_tok is None:
+        return True
+    o = [t.s for t in ours if t.kind == 'p']
+    t_ = [t.s for t in theirs if t.kind == 'p']
+    fin = lambda xs: any(x in '.!?' for x in xs)
+    if '.' in t_ and '.' not in o and next_tok.s[:1].islower():
+        return False
+    if fin(o) and not fin(t_) and next_tok.s[:1].isupper():
+        return False
+    return True
 
 
 def punct_pattern(ours, theirs, prev_tok, next_tok):
@@ -552,8 +618,11 @@ def punct_pattern(ours, theirs, prev_tok, next_tok):
 
 
 # ---------------------------------------------------------------- corrections
-def make_correction(site, toks_all, segments, new_text, raison, source, level):
-    """Construit une entrée {doc, chercher, remplacer, raison} pour ocr_apply.py."""
+def make_correction(site, toks_all, segments, new_text, raison, source, level, nb='\u202f'):
+    """Construit une entrée {doc, chercher, remplacer, raison} pour ocr_apply.py.
+    Les espaces suivent la typographie du livre : l'espace qui précède un signe ou un mot
+    supprimé part avec lui, un « ; » inséré reçoit l'espace insécable `nb`, un mot inséré
+    son espace ordinaire."""
     a, b = site['i1'], site['i2']
     A = site['_A']
     if a < b:
@@ -570,6 +639,13 @@ def make_correction(site, toks_all, segments, new_text, raison, source, level):
             return None, 'insertion en frontière de segment'
         start = end = A[a - 1].end if a > 0 else A[a].off
     text = segments[doc][seg]
+    if new_text == '' or new_text[:1] in ',.':
+        while start > 0 and text[start - 1] in ' \u202f\xa0':
+            start -= 1
+    elif new_text[:1] in ';:!?' and start > 0 and text[start - 1] not in ' \u202f\xa0':
+        new_text = nb + new_text
+    elif new_text[:1].isalnum() and a == b and start > 0 and not text[start - 1].isspace():
+        new_text = ' ' + new_text
     docs_text = [s for s in segments[doc] if s]
     for pad in (45, 70, 100, 150, 250):
         cs = max(0, start - pad); ce = min(len(text), end + pad)
@@ -643,6 +719,8 @@ def main():
 
     toks, segments = extract_epub(args.epub)
     A = aligned(toks)
+    corps = ''.join(x for segs in segments.values() for x in segs)
+    nb = '\u202f' if corps.count('\u202f') >= corps.count('\xa0') else '\xa0'
     lex = Lexicon(args.lexicon, toks)
     editions = dict(e.split('=', 1) for e in args.temoin_edition)
     witnesses = {}
@@ -775,6 +853,10 @@ def main():
                 pat = punct_pattern([t for t in ours if t.kind == 'p'], [t for t in theirs if t.kind == 'p'], prev_tok, next_tok)
                 if pat and cons and all(keys(readings[n]) == keys(theirs) for n in differing):
                     level, action, raison = 'N0', 'remplacer', pat
+                elif cons and len(differing) >= 2 and all(keys(readings[n]) == keys(theirs) for n in differing) \
+                        and punct_case_ok(ours, theirs, next_tok) \
+                        and not unaligned_sign_missing(A, segments, i1, i2, [witnesses[n] for n in differing]):
+                    level, action, raison = 'N0', 'remplacer', 'ponctuation (deux témoins)'
                 else:
                     level = 'N2-ponct' if not cons else 'N2-ponct-consensus'
             elif cons and len(differing) >= 2:
@@ -792,6 +874,11 @@ def main():
                     level, action, raison = 'N1', 'remplacer', 'lettre substituée (deux témoins)'
                 elif nat == 'ajout_nous' and len(ours) == 1 and prev_tok is not None and prev_tok.k == ours[0].k:
                     level, action, raison = 'N1', 'supprimer', 'mot doublé (dittographie)'
+                elif nat == 'omission_nous' and not any(t.xb for t in theirs) and not label_like(theirs, prev_tok):
+                    level, action, raison = 'N1', 'inserer', 'omission de la copie (deux témoins)'
+                elif nat == 'ajout_nous' and len(ours) <= 3 and all(t.kind == 'w' for t in ours) \
+                        and all(not readings[n] for n in differing) and not ours[0].s[:1].isupper():
+                    level, action, raison = 'N1', 'supprimer', 'ajout de la copie (deux témoins)'
                 else:
                     level = 'N2'
             elif len(covered) == 1:
@@ -805,33 +892,19 @@ def main():
             if action:
                 if action == 'accent':
                     new = transfer_accents(ours[0].s, theirs[0].s)
-                elif action == 'remplacer':
-                    wt = [t for t in theirs]
-                    if nat == 'ponctuation':
-                        # ne remplacer que les signes : on reconstruit à partir du témoin
-                        new = ''.join(t.s for t in theirs if t.kind == 'p')
-                    else:
-                        new = surf(wt)
-                        if len(ours) == 1 and len(wt) == 1:
-                            new = adapt_case(wt[0].s, ours[0].s)
-                            new = nfc(new).replace("'", '’')
-                    if new.startswith((',', '.', ';', ':')) and i1 < i2 and False:
-                        pass
+                elif action == 'remplacer' and nat == 'ponctuation':
+                    # ne remplacer que les signes : on reconstruit à partir du témoin
+                    new = render([t for t in theirs if t.kind == 'p'], nb).lstrip(nb)
+                elif action == 'remplacer' and len(ours) == 1 and len(theirs) == 1:
+                    new = nfc(adapt_case(theirs[0].s, ours[0].s)).replace("'", '’')
+                elif action in ('remplacer', 'inserer'):
+                    new = render(theirs, nb)
                 else:
                     new = ''
-                # espace : si l'on supprime un mot doublé, retirer aussi l'espace qui le précède
                 site = {'i1': i1, 'i2': i2, '_A': A}
-                if action == 'supprimer' and i1 > 0:
-                    seg_text = segments[A[i1].doc][A[i1].seg]
-                    # étendre le début au blanc précédent
-                    class _T: pass
-                    site = {'i1': i1, 'i2': i2, '_A': A}
                 temoins_txt = ', '.join(f"{n} ({editions.get(n, '?')}) : « {surf(readings[n])} »" for n in differing)
                 corr, why = make_correction(site, toks, segments, new, f'{raison} — {temoins_txt}',
-                                            f'collation {level} ({"+".join(differing)})', level)
-                if action == 'supprimer' and corr:
-                    # retirer l'espace doublée laissée par la suppression
-                    corr['remplacer'] = re.sub(r'(\s)\s+', r'\1', corr['remplacer'])
+                                            f'collation {level} ({"+".join(differing)})', level, nb)
                 if corr:
                     corr['i1'] = i1
                     corrections.append(corr)
