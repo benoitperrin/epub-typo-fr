@@ -47,7 +47,8 @@ HEAD_TAGS = {'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
 # ponctuation alignée | reste
 TOK_RE = re.compile(r"[Nn][°º]|[Nn]o(?=\s*\d)|[^\W\d_]+(?:['’ʼ][^\W\d_]+|-[^\W\d_]+)*|\d+|\.(?:\s*\.)+|[.,;:!?]|[^\s\w]")
 ALIGNED_PUNCT = set('.,;:!?')
-ROMAN = re.compile(r'^(?:CHAPITRE\s+)?([IVXLC]+)(?:\s*[.—–\-:]\s*|\s+|$)', re.I)
+# numéro de chapitre en capitales : « IV », « CHAPITRE XII. » — jamais le pronom « Il »
+ROMAN = re.compile(r'^(?:CHAPITRE\s+|Chapitre\s+)?([IVXLC]+)(?:\s*[.—–\-:]\s*|\s+|$)')
 BIG_GAP = 60          # au-delà : zone non couverte (chapitre absent, boilerplate), pas une divergence
 CTX = 70
 
