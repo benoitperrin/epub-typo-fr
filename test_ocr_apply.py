@@ -91,6 +91,13 @@ out, body = apply('<p>—Pour prévenir les gendarmes.</p>',
                   [{'doc': 'ch.xhtml', 'chercher': '—Pour prévenir les gendarmes.',
                     'remplacer': '—Pour avertir les brigadiers et tâcher de ravoir les ânes.'}], ['--insertion-max', '60'])
 check('--insertion-max ne couvre pas une réécriture', body and 'avertir' not in body)
+longue = [{'doc': 'ch.xhtml', 'chercher': 'le succès de son invention.',
+           'remplacer': 'le succès de son invention ; il en prit lui-même, et, quoiqu’il n’en fût pas resté '
+                        'beaucoup, il y en avait assez pour lui faire regretter de ne pas en avoir fait davantage.'}]
+out, body = apply('<p>il vit le succès de son invention.</p>', longue, ['--insertion-max', '80'])
+check('insertion de 145 caractères refusée à --insertion-max 80', body and 'davantage' not in body)
+out, body = apply('<p>il vit le succès de son invention.</p>', longue, ['--insertion-max', '160'])
+check('insertion de 145 caractères acceptée à --insertion-max 160', body and 'fait davantage.' in body)
 
 # source composée ligne à ligne : une citation qui met une espace là où le texte a un retour à la ligne
 out, body = apply('<p>l’âne\ns’impatiente et part au\ngalop. Sophie veut l’arrêter</p>',

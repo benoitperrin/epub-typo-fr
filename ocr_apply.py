@@ -166,8 +166,8 @@ def main():
     ap.add_argument('--max-word-delta', type=int, default=2)
     ap.add_argument('--budget-pct', type=float, default=0.2)
     ap.add_argument('--insertion-max', type=int, default=0,
-                    help="accepter une insertion pure jusqu'à N caractères (restitution d'une omission "
-                         "attestée par collation) ; 0 = bornes ordinaires")
+                    help="accepter une insertion pure jusqu'à N caractères et 30 mots (restitution d'une "
+                         "omission attestée par collation) ; 0 = bornes ordinaires")
     args = ap.parse_args()
 
     corrections = defaultdict(list)
@@ -219,7 +219,7 @@ def main():
                 # garde-fous taille (suppression pure d'un bloc contigu — doublon
                 # de phrase — autorisée plus largement)
                 wd = abs(len(rp.split()) - len(ch.split()))
-                ed = edit_distance(ch, rp, cap=40)
+                ed = edit_distance(ch, rp, cap=max(40, args.insertion_max))
                 pure_deletion = norm_spaces(rp) in norm_spaces(ch) and len(rp) < len(ch)
                 max_ed = 30 if pure_deletion else args.max_edit
                 max_wd = 6 if pure_deletion else args.max_word_delta
@@ -229,9 +229,10 @@ def main():
                 # (--insertion-max), quand les corrections viennent d'une collation.
                 pre = len(os.path.commonprefix([ch, rp]))
                 suf = len(os.path.commonprefix([ch[pre:][::-1], rp[pre:][::-1]]))
-                if args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch) \
-                        and len(rp) - len(ch) <= args.insertion_max:
-                    max_ed, max_wd = len(rp) - len(ch), 12
+                insertion = bool(args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch)
+                                 and len(rp) - len(ch) <= args.insertion_max)
+                if insertion:
+                    max_ed, max_wd = len(rp) - len(ch), 30
                 # Un motif court est ambigu… sauf quand il occupe À LUI SEUL un
                 # nœud de texte : sa position est alors déterminée par le balisage,
                 # pas par le voisinage. Fabrication Word→Calibre courante —
@@ -241,7 +242,7 @@ def main():
                 if len(ch) < 8 and not noeud_entier:
                     rejected.append((c, 'motif trop court (<8 chars), ambigu'))
                     continue
-                if ed > max_ed or wd > max_wd or abs(len(rp) - len(ch)) > 60:
+                if ed > max_ed or wd > max_wd or (abs(len(rp) - len(ch)) > 60 and not insertion):
                     rejected.append((c, f'au-delà des bornes (édition {ed}, mots Δ{wd})'))
                     continue
                 # 1) correspondance exacte
