@@ -92,6 +92,12 @@ out, body = apply('<p>—Pour prévenir les gendarmes.</p>',
                     'remplacer': '—Pour avertir les brigadiers et tâcher de ravoir les ânes.'}], ['--insertion-max', '60'])
 check('--insertion-max ne couvre pas une réécriture', body and 'avertir' not in body)
 
+# source composée ligne à ligne : une citation qui met une espace là où le texte a un retour à la ligne
+out, body = apply('<p>l’âne\ns’impatiente et part au\ngalop. Sophie veut l’arrêter</p>',
+                  [{'doc': 'ch.xhtml', 'chercher': 'et part au galop. Sophie', 'remplacer': 'et part au grand galop. Sophie'}])
+check('retour à la ligne toléré comme une espace',
+      body and 'part au grand galop' in body.replace('\n', ' ') and body.count('\n') >= 2)
+
 # motif non unique → rejeté (≥8 chars pour dépasser le filtre de longueur)
 out, body = apply('<p>le petit chat. le petit chat dort</p>',
                   [{'doc': 'ch.xhtml', 'chercher': 'le petit chat', 'remplacer': 'le grand chat'}])

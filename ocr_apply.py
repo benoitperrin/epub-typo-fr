@@ -43,7 +43,7 @@ def edit_distance(a, b, cap=50):
     return prev[-1]
 
 
-SPACE_ANY = '   '
+SPACE_ANY = '\u00a0\u202f\u2009\n'   # insécable, fine insécable, fine, retour à la ligne (source composée ligne à ligne)
 
 def norm_spaces(s):
     for c in SPACE_ANY:
