@@ -108,6 +108,89 @@
    "source_md5": "994c79636c558b5ab758b43785f9ee16",
    "epub_md5": "cab42d9412d789d22256129e29ec3098",
    "epubcheck_erreurs": 0
+  },
+  {
+   "id": 725,
+   "titre": "Le Mauvais Génie",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1896)",
+     "couverture": 0.9969
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1879 (4e édition))",
+     "couverture": 0.9999
+    }
+   },
+   "juin": {
+    "total": 50,
+    "confirmees_par_les_temoins": 47,
+    "confirmees_a_la_relecture": 3,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 303,
+   "entrees_ocr_apply": 277,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 1,
+   "decisions": {
+    "J_garder": 3,
+    "N0_garder": 93,
+    "N0_veto": 2,
+    "N0_modifier": 4,
+    "N1_garder": 118,
+    "N1_modifier": 3,
+    "N2_laisser": 38,
+    "N2_corriger": 75,
+    "L_corriger": 2,
+    "L_laisser": 1,
+    "E_corriger": 8,
+    "E_ouvert": 1
+   },
+   "source_md5": "8342990f57615149a3243b2adca3f7a1",
+   "epub_md5": "9563523bf7def6292138cbf6f1f797d2",
+   "epubcheck_erreurs": 0
+  },
+  {
+   "id": 726,
+   "titre": "Les deux nigauds",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Librairie de Louis Hachette et Cie 1863)",
+     "couverture": 1.0
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1909)",
+     "couverture": 0.9999
+    }
+   },
+   "juin": {
+    "total": 152,
+    "confirmees_par_les_temoins": 126,
+    "confirmees_a_la_relecture": 17,
+    "infirmees": 9
+   },
+   "corrections_nouvelles_appliquees": 627,
+   "entrees_ocr_apply": 563,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_autre": 9,
+    "J_garder": 17,
+    "N0_garder": 341,
+    "N0_veto": 24,
+    "N0_modifier": 14,
+    "N1_garder": 131,
+    "N1_modifier": 11,
+    "N1_veto": 4,
+    "N2_corriger": 122,
+    "N2_laisser": 29,
+    "L_corriger": 6,
+    "L_laisser": 4,
+    "E_corriger": 2
+   },
+   "source_md5": "72a904d288f06946b6f0a80233b13cac",
+   "epub_md5": "4e035d6631cde42d378870fec458546e",
+   "epubcheck_erreurs": 0
   }
  ]
 }
