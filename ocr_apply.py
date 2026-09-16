@@ -85,6 +85,60 @@ def splice_replacement(actual, ch, rp):
     return ''.join(out)
 
 
+def fuse_overlapping(todo, seg_texts, rejected):
+    """Deux corrections dont les citations se chevauchent dans le même nœud de texte ne
+    s'appliquent pas l'une après l'autre : la première change le contexte que cite la
+    seconde (« en revenant, … grâce à Mme Juivet, … » : deux virgules, deux corrections,
+    la seconde « introuvable »). On les fond en une seule qui cite l'union des passages,
+    pourvu que leurs changements eux-mêmes ne se touchent pas ; sinon elles sont en
+    conflit et rejetées toutes deux."""
+    located, rest = [], []
+    for c in todo:
+        ch = c['chercher']
+        where = [(i, t.find(ch)) for i, t in seg_texts if ch in t]
+        if len(where) == 1 and sum(t.count(ch) for _, t in seg_texts) == 1:
+            located.append((where[0][0], where[0][1], c))
+        else:
+            rest.append(c)
+    located.sort(key=lambda x: (x[0], x[1]))
+    texts, out, k = dict(seg_texts), [], 0
+    while k < len(located):
+        i, a, c = located[k]
+        group, end = [(a, c)], a + len(c['chercher'])
+        k += 1
+        while k < len(located) and located[k][0] == i and located[k][1] < end:
+            group.append((located[k][1], located[k][2]))
+            end = max(end, located[k][1] + len(located[k][2]['chercher']))
+            k += 1
+        if len(group) == 1:
+            out.append(c)
+            continue
+        changes = []
+        for pos, cc in group:
+            ch, rp = cc['chercher'], cc['remplacer']
+            pre = 0
+            while pre < min(len(ch), len(rp)) and ch[pre] == rp[pre]:
+                pre += 1
+            suf = 0
+            while suf < min(len(ch), len(rp)) - pre and ch[-1 - suf] == rp[-1 - suf]:
+                suf += 1
+            changes.append((pos + pre, pos + len(ch) - suf, rp[pre:len(rp) - suf]))
+        changes.sort()
+        if any(changes[j][1] > changes[j + 1][0] for j in range(len(changes) - 1)):
+            rejected.extend((cc, 'corrections en conflit sur le même passage') for _, cc in group)
+            continue
+        merged = texts[i][a:end]
+        for s0, e0, new in reversed(changes):
+            merged = merged[:s0 - a] + new + merged[e0 - a:]
+        fused = dict(group[0][1])
+        fused.update(chercher=texts[i][a:end], remplacer=merged, fusion=len(group),
+                     _parts=[cc for _, cc in group],
+                     raison=' + '.join(cc.get('raison', '') for _, cc in group),
+                     source=' + '.join(dict.fromkeys(cc.get('source', '') for _, cc in group)))
+        out.append(fused)
+    return out + rest
+
+
 def split_doc(htm):
     """[(is_tag, fragment, in_skip)], reconstruction = concat des fragments."""
     parts = []
@@ -156,6 +210,7 @@ def main():
             # texte par segment (désentitisé)
             seg_texts = [(i, html.unescape(frag)) for i, (is_tag, frag, skp) in enumerate(parts)
                          if not is_tag and not skp and frag]
+            todo = fuse_overlapping(todo, seg_texts, rejected)
             for c in todo:
                 ch, rp = c['chercher'], c['remplacer']
                 # garde-fous taille (suppression pure d'un bloc contigu — doublon
@@ -246,7 +301,8 @@ def main():
     # correspond à aucune entrée du zip, ou à une entrée non patchable, n'était
     # jusqu'ici ni appliquée ni rejetée — elle s'évaporait, et le compte final
     # paraissait bon.
-    vus = {id(c) for _, c, *_ in applied} | {id(c) for c, _ in rejected}
+    vus = {id(x) for _, c, *_ in applied for x in [c] + c.get('_parts', [])} \
+        | {id(x) for c, _ in rejected for x in [c] + c.get('_parts', [])}
     noms = set(zin_names)
     for doc, lot in corrections.items():
         for c in lot:

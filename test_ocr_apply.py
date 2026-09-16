@@ -65,6 +65,21 @@ out, body = apply('<p>la pensée de courir apres Charles</p>',
 check('correction simple appliquée', body and 'courir après Charles' in body)
 check('1 appliquée / 0 rejetée', '1 appliquées, 0 rejetées' in out)
 
+# deux corrections dont les citations se chevauchent → fondues, toutes deux appliquées
+out, body = apply('<p>tout le monde fut d’accord en revenant, … grâce à Mme Juivet, … comme avait dit Madeleine.</p>',
+                  [{'doc': 'ch.xhtml', 'chercher': 'd’accord en revenant, … grâce à Mme Juivet',
+                    'remplacer': 'd’accord en revenant … grâce à Mme Juivet'},
+                   {'doc': 'ch.xhtml', 'chercher': 'revenant, … grâce à Mme Juivet, … comme avait',
+                    'remplacer': 'revenant, … grâce à Mme Juivet … comme avait'}])
+check('citations chevauchantes fondues et appliquées', body and 'revenant … grâce à Mme Juivet … comme' in body)
+check('fusion : aucune rejetée', '0 rejetées' in out)
+
+# deux corrections qui changent le même mot → conflit, rien d'appliqué
+out, body = apply('<p>le chat noir dort sur le toit de la maison</p>',
+                  [{'doc': 'ch.xhtml', 'chercher': 'le chat noir dort', 'remplacer': 'le chat blanc dort'},
+                   {'doc': 'ch.xhtml', 'chercher': 'chat noir dort sur', 'remplacer': 'chat gris dort sur'}])
+check('changements en conflit rejetés', body and 'le chat noir dort' in body and '2 rejetées' in out)
+
 # motif non unique → rejeté (≥8 chars pour dépasser le filtre de longueur)
 out, body = apply('<p>le petit chat. le petit chat dort</p>',
                   [{'doc': 'ch.xhtml', 'chercher': 'le petit chat', 'remplacer': 'le grand chat'}])
