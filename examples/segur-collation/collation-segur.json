@@ -2,6 +2,47 @@
  "_commentaire": "Collation des 13 romans contre témoins (septembre 2026) : par volume, témoins, sort des corrections de juin, corrections nouvelles, cas ouverts, empreintes.",
  "volumes": [
   {
+   "id": 718,
+   "titre": "Un bon petit diable",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1898)",
+     "couverture": 1.0
+    },
+    "gallica": {
+     "edition": "Gallica (L. Hachette, Paris, 1866)",
+     "couverture": 0.9999
+    }
+   },
+   "juin": {
+    "total": 97,
+    "confirmees_par_les_temoins": 92,
+    "confirmees_a_la_relecture": 0,
+    "infirmees": 5
+   },
+   "corrections_nouvelles_appliquees": 219,
+   "entrees_ocr_apply": 212,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_autre": 4,
+    "J_revenir": 1,
+    "N0_garder": 102,
+    "N0_modifier": 1,
+    "N0_veto": 8,
+    "N1_garder": 60,
+    "N1_modifier": 2,
+    "N1_veto": 3,
+    "N2_laisser": 27,
+    "N2_corriger": 44,
+    "L_corriger": 2,
+    "E_corriger": 8
+   },
+   "source_md5": "bc7560c266c26da162c25a655e29a92f",
+   "epub_md5": "36106952de18e8ed83d15c38d066dd4f",
+   "epubcheck_erreurs": 0
+  },
+  {
    "id": 719,
    "titre": "Nouveaux contes de fées pour les petits enfants",
    "temoins": {
@@ -78,6 +119,43 @@
    },
    "source_md5": "258185d1cb2c08078baf106f3245ef95",
    "epub_md5": "5204cd5f52d2417a29865591a43a7472",
+   "epubcheck_erreurs": 0
+  },
+  {
+   "id": 722,
+   "titre": "Les petites filles modèles",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1918)",
+     "couverture": 0.9968
+    },
+    "gallica": {
+     "edition": "Gallica (L. Hachette et Cie, Paris, 1858 (édition originale))",
+     "couverture": 0.9973
+    }
+   },
+   "juin": {
+    "total": 2,
+    "confirmees_par_les_temoins": 2,
+    "confirmees_a_la_relecture": 0,
+    "infirmees": 0
+   },
+   "corrections_nouvelles_appliquees": 27,
+   "entrees_ocr_apply": 27,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "N0_garder": 7,
+    "N0_veto": 2,
+    "N0_modifier": 2,
+    "N1_garder": 9,
+    "N1_modifier": 1,
+    "N2_corriger": 3,
+    "N2_laisser": 33,
+    "E_corriger": 5
+   },
+   "source_md5": "51df4d9ece0111c23a6f64e1ced8077c",
+   "epub_md5": "c6aecde77ad4b7b47a40af9cf2f9ada9",
    "epubcheck_erreurs": 0
   },
   {
