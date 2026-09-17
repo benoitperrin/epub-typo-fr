@@ -311,6 +311,48 @@
    "source_md5": "72a904d288f06946b6f0a80233b13cac",
    "epub_md5": "4e035d6631cde42d378870fec458546e",
    "epubcheck_erreurs": 0
+  },
+  {
+   "id": 727,
+   "titre": "Le Général Dourakine",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1895)",
+     "couverture": 0.999
+    },
+    "gallica": {
+     "edition": "Gallica (L. Hachette, Paris, 1866)",
+     "couverture": 1.0
+    }
+   },
+   "juin": {
+    "total": 106,
+    "confirmees_par_les_temoins": 85,
+    "confirmees_a_la_relecture": 17,
+    "infirmees": 4
+   },
+   "corrections_nouvelles_appliquees": 91,
+   "entrees_ocr_apply": 89,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_revenir": 1,
+    "J_garder": 17,
+    "J_autre": 3,
+    "N0_garder": 20,
+    "N0_veto": 14,
+    "N0_modifier": 2,
+    "N1_garder": 15,
+    "N1_veto": 3,
+    "N2_laisser": 96,
+    "N2_corriger": 20,
+    "L_corriger": 3,
+    "L_laisser": 3,
+    "E_corriger": 31
+   },
+   "source_md5": "a1c415d42a6bceded62b9412eb30c2e8",
+   "epub_md5": "37b41e9170af47bda2eba85bccc6eccb",
+   "epubcheck_erreurs": 0
   }
  ]
 }
