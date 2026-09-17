@@ -394,7 +394,7 @@ def label_colon(A, segments, i):
     if n == 0 or not first.s[:1].isupper():
         return False
     rest = segments[t.doc][t.seg][t.end:t.end + 3].lstrip(' \u202f\xa0')
-    if rest.startswith(('—', '–', '-')):
+    if rest.startswith(('—', '–', '-', '«')):      # « Le général : « Oui, mon garçon » (Le général Dourakine)
         return True
     nxt = A[i + 1] if i + 1 < len(A) else None
     # le nom occupe seul son segment (« <i>Henri, riant:</i> ») ou son paragraphe
