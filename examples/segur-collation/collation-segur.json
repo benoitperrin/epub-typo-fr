@@ -39,6 +39,48 @@
    "epubcheck_erreurs": 0
   },
   {
+   "id": 720,
+   "titre": "Pauvre Blaise",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Librairie Hachette et Cie 1872)",
+     "couverture": 0.998
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1876 (nouvelle édition))",
+     "couverture": 0.9999
+    }
+   },
+   "juin": {
+    "total": 51,
+    "confirmees_par_les_temoins": 43,
+    "confirmees_a_la_relecture": 6,
+    "infirmees": 2
+   },
+   "corrections_nouvelles_appliquees": 330,
+   "entrees_ocr_apply": 296,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_garder": 6,
+    "J_autre": 2,
+    "N0_garder": 199,
+    "N0_veto": 33,
+    "N0_modifier": 2,
+    "N1_veto": 1,
+    "N1_garder": 33,
+    "N1_modifier": 7,
+    "N2_laisser": 55,
+    "N2_corriger": 68,
+    "L_corriger": 2,
+    "L_laisser": 40,
+    "E_corriger": 19
+   },
+   "source_md5": "258185d1cb2c08078baf106f3245ef95",
+   "epub_md5": "5204cd5f52d2417a29865591a43a7472",
+   "epubcheck_erreurs": 0
+  },
+  {
    "id": 723,
    "titre": "Les Mémoires d'un âne",
    "temoins": {

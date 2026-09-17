@@ -45,7 +45,19 @@
   "ec_err": 0,
   "apos_d": 1,
   "apos_c": 3212,
-  "chars": 305554
+  "chars": 305554,
+  "collation_2026_09": {
+   "juin": {
+    "total": 51,
+    "confirmees_par_les_temoins": 43,
+    "confirmees_a_la_relecture": 6,
+    "infirmees": 2
+   },
+   "corrections_nouvelles_appliquees": 330,
+   "n2_ouverts": 0,
+   "epub_md5": "5204cd5f52d2417a29865591a43a7472",
+   "epubcheck_erreurs": 0
+  }
  },
  {
   "id": 721,
