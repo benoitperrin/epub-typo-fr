@@ -139,6 +139,29 @@ def fuse_overlapping(todo, seg_texts, rejected):
     return out + rest
 
 
+def bornes(ch, rp, args):
+    """None si la correction reste dans les bornes, sinon la raison du refus."""
+    # garde-fous taille (suppression pure d'un bloc contigu — doublon de phrase — autorisée plus largement)
+    wd = abs(len(rp.split()) - len(ch.split()))
+    ed = edit_distance(ch, rp, cap=max(40, args.insertion_max))
+    pure_deletion = norm_spaces(rp) in norm_spaces(ch) and len(rp) < len(ch)
+    max_ed = 30 if pure_deletion else args.max_edit
+    max_wd = 6 if pure_deletion else args.max_word_delta
+    # Restituer un membre de phrase que la copie a sauté (« pour prévenir les gendarmes ‸ et tâcher
+    # de ravoir les ânes ») : une insertion pure, rien d'enlevé. Permise au-delà des bornes seulement
+    # sur demande (--insertion-max), quand les corrections viennent d'une collation.
+    pre = len(os.path.commonprefix([ch, rp]))
+    suf = len(os.path.commonprefix([ch[pre:][::-1], rp[pre:][::-1]]))
+    insertion = bool(args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch)
+                     and len(rp) - len(ch) <= args.insertion_max)
+    if insertion:
+        # la borne est en caractères : une phrase restituée de trente-deux mots passe
+        max_ed, max_wd = len(rp) - len(ch), len(rp.split())
+    if ed > max_ed or wd > max_wd or (abs(len(rp) - len(ch)) > 60 and not insertion):
+        return f'au-delà des bornes (édition {ed}, mots Δ{wd})'
+    return None
+
+
 def split_doc(htm):
     """[(is_tag, fragment, in_skip)], reconstruction = concat des fragments."""
     parts = []
@@ -216,24 +239,11 @@ def main():
             todo = fuse_overlapping(todo, seg_texts, rejected)
             for c in todo:
                 ch, rp = c['chercher'], c['remplacer']
-                # garde-fous taille (suppression pure d'un bloc contigu — doublon
-                # de phrase — autorisée plus largement)
-                wd = abs(len(rp.split()) - len(ch.split()))
-                ed = edit_distance(ch, rp, cap=max(40, args.insertion_max))
-                pure_deletion = norm_spaces(rp) in norm_spaces(ch) and len(rp) < len(ch)
-                max_ed = 30 if pure_deletion else args.max_edit
-                max_wd = 6 if pure_deletion else args.max_word_delta
-                # Restituer un membre de phrase que la copie a sauté (« pour prévenir les
-                # gendarmes ‸ et tâcher de ravoir les ânes ») : une insertion pure, rien
-                # d'enlevé. Permise au-delà des bornes seulement sur demande
-                # (--insertion-max), quand les corrections viennent d'une collation.
-                pre = len(os.path.commonprefix([ch, rp]))
-                suf = len(os.path.commonprefix([ch[pre:][::-1], rp[pre:][::-1]]))
-                insertion = bool(args.insertion_max and len(rp) > len(ch) and pre + suf >= len(ch)
-                                 and len(rp) - len(ch) <= args.insertion_max)
-                if insertion:
-                    # la borne est en caractères : une phrase restituée de trente-deux mots passe
-                    max_ed, max_wd = len(rp) - len(ch), len(rp.split())
+                # Une correction fondue (fuse_overlapping) se juge sur chacune de ses parties :
+                # la fusion est une nécessité mécanique, pas une réécriture plus large.
+                verdicts_bornes = [bornes(p['chercher'], p['remplacer'], args)
+                                   for p in (c.get('_parts') or [c])]
+                hors = next((v for v in verdicts_bornes if v), None)
                 # Un motif court est ambigu… sauf quand il occupe À LUI SEUL un
                 # nœud de texte : sa position est alors déterminée par le balisage,
                 # pas par le voisinage. Fabrication Word→Calibre courante —
@@ -243,8 +253,8 @@ def main():
                 if len(ch) < 8 and not noeud_entier:
                     rejected.append((c, 'motif trop court (<8 chars), ambigu'))
                     continue
-                if ed > max_ed or wd > max_wd or (abs(len(rp) - len(ch)) > 60 and not insertion):
-                    rejected.append((c, f'au-delà des bornes (édition {ed}, mots Δ{wd})'))
+                if hors:
+                    rejected.append((c, hors))
                     continue
                 # 1) correspondance exacte
                 hits = [(i, t.find(ch)) for i, t in seg_texts if ch in t]

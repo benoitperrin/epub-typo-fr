@@ -74,6 +74,14 @@ out, body = apply('<p>tout le monde fut d’accord en revenant, … grâce à Mm
 check('citations chevauchantes fondues et appliquées', body and 'revenant … grâce à Mme Juivet … comme' in body)
 check('fusion : aucune rejetée', '0 rejetées' in out)
 
+# fusion d'une insertion attestée et d'une petite correction voisine : chacune jugée sur ses bornes
+out, body = apply('<p>et ils disent : ce n’est pas moi. Moi je continue à toujours dire la vérité, comme tu me l’a conseillé.</p>',
+                  [{'doc': 'ch.xhtml', 'chercher': 'et ils disent : ce n’est pas moi. Moi je continue à toujours dire la vérité, comme',
+                    'remplacer': 'et ils disent : ce n’est pas moi, ce n’est pas moi. Moi je continue à toujours dire la vérité, comme'},
+                   {'doc': 'ch.xhtml', 'chercher': 'comme tu me l’a conseillé', 'remplacer': 'comme tu me l’as conseillé'}],
+                  ['--insertion-max', '60'])
+check('fusion jugée partie par partie', body and 'pas moi, ce n’est pas moi. Moi' in body and 'l’as conseillé' in body)
+
 # deux corrections qui changent le même mot → conflit, rien d'appliqué
 out, body = apply('<p>le chat noir dort sur le toit de la maison</p>',
                   [{'doc': 'ch.xhtml', 'chercher': 'le chat noir dort', 'remplacer': 'le chat blanc dort'},
