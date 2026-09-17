@@ -571,19 +571,23 @@ def render(toks, nb):
 
 
 def unaligned_sign_missing(A, segments, i1, i2, wits):
-    """Le témoin met-il juste après le site un signe non aligné (« … », « — ») que nous n'avons
-    pas ? Alors retirer notre virgule ne suffirait pas (« ça, dit Finot » ≠ « ça… dit Finot »)."""
+    """Un signe non aligné (« … », « — ») suit-il le site chez le témoin et pas chez nous, ou l'inverse ?
+    Alors changer la seule ponctuation alignée ne suffirait pas (« ça, dit Finot » ≠ « ça… dit Finot »)."""
     if i2 >= len(A):
         return False
+    last = A[i2 - 1] if i2 > i1 else (A[i1 - 1] if i1 > 0 else None)
+    nxt = A[i2]
+    meme_seg = last is not None and last.doc == nxt.doc and last.seg == nxt.seg
+    signe_nous = meme_seg and bool(segments[nxt.doc][nxt.seg][last.end:nxt.off].strip(' \u202f\xa0\n'))
     for w in wits:
         j = w.jend[i2 - 1] if i2 > i1 else w.jstart[i1]
-        if j < len(w.B) and w.B[j].xb:
-            last = A[i2 - 1] if i2 > i1 else (A[i1 - 1] if i1 > 0 else None)
-            nxt = A[i2]
-            if last is None or last.doc != nxt.doc or last.seg != nxt.seg:
-                return True
-            if not segments[nxt.doc][nxt.seg][last.end:nxt.off].strip(' \u202f\xa0'):
-                return True
+        signe_temoin = j < len(w.B) and w.B[j].xb
+        if signe_temoin and not signe_nous:
+            return True
+        # l'inverse : la copie a des points de suspension (ou un tiret) que le témoin n'a pas ; poser le
+        # signe du témoin devant eux fabriquerait « confuse.… » (Les petites filles modèles)
+        if signe_nous and not signe_temoin:
+            return True
     return False
 
 
