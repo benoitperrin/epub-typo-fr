@@ -825,6 +825,42 @@ def main():
             ext.append((a, b))
     sites = ext
 
+    # ---- lacunes et excédents de la copie : les grands blocs que l'alignement saute (BIG_GAP) ne
+    # sont pas des divergences, mais un passage entier qui manque à la copie (ou qu'elle ajoute) ne
+    # doit pas disparaître en silence. Un bloc compte quand chaque témoin qui couvre l'endroit le porte.
+    # Cas réel : Un bon petit diable, la copie Gutenberg saute la fin du chapitre XX, tout le XXI et
+    # l'essentiel du XXII (≈ 45 000 caractères), sans qu'aucun site ne le dise.
+    def grands_blocs(w):
+        out = []
+        for op, i1, i2, j1, j2 in w.ops:
+            if op == 'equal':
+                continue
+            if (j2 - j1) - (i2 - i1) > BIG_GAP:
+                out.append(('lacune', i1, i2, j1, j2))
+            elif (i2 - i1) - (j2 - j1) > BIG_GAP:
+                out.append(('excedent', i1, i2, j1, j2))
+        return out
+    blocs = {n: grands_blocs(w) for n, w in witnesses.items()}
+    lacunes = []
+    if names:
+        ref = names[0]
+        for kind, i1, i2, j1, j2 in blocs[ref]:
+            confirme = [ref]
+            for n in names[1:]:
+                if any(k == kind and abs(x1 - i1) <= BIG_GAP and abs(x2 - i2) <= BIG_GAP for k, x1, x2, _, _ in blocs[n]):
+                    confirme.append(n)
+            B = witnesses[ref].B
+            texte_temoin = ' '.join(t.s for t in B[j1:j2])
+            a = A[min(i1, len(A) - 1)]
+            seg = segments[a.doc][a.seg]
+            lacunes.append({'nature': kind, 'temoins': confirme, 'confirmee': len(confirme) == len(names),
+                            'doc': a.doc, 'chap': a.chap,
+                            'copie_avant': ' '.join(t.s for t in A[max(0, i1 - 12):i1]),
+                            'copie_apres': ' '.join(t.s for t in A[i2:i2 + 12]),
+                            'copie_mots': sum(1 for t in A[i1:i2] if t.kind == 'w'),
+                            'temoin_mots': sum(1 for t in B[j1:j2] if t.kind == 'w'),
+                            'temoin_debut': texte_temoin[:160], 'temoin_fin': texte_temoin[-160:]})
+
     results, corrections, stats = [], [], Counter()
     cov_stats = {n: round(w.covered_ratio, 4) for n, w in witnesses.items()}
     for i1, i2 in sites:
@@ -1072,6 +1108,9 @@ def main():
         for c in sorted(corrections, key=lambda c: c['i1']):
             f.write(json.dumps({k: v for k, v in c.items() if k != 'i1'}, ensure_ascii=False) + '\n')
     json.dump(clean(juin), open(idp + '-juin.json', 'w'), ensure_ascii=False, indent=1)
+    json.dump(lacunes, open(idp + '-lacunes.json', 'w'), ensure_ascii=False, indent=1)
+    stats['lacunes'] = sum(1 for l in lacunes if l['nature'] == 'lacune' and l['confirmee'])
+    stats['excedents'] = sum(1 for l in lacunes if l['nature'] == 'excedent' and l['confirmee'])
     meta = {'id': args.id, 'titre': args.titre, 'epub': os.path.basename(args.epub), 'tokens': len(A),
             'mots': sum(1 for t in A if t.kind == 'w'), 'temoins': {n: {'edition': editions.get(n, ''), 'tokens': len(w.B),
             'couverture': cov_stats[n]} for n, w in witnesses.items()}, 'stats': dict(stats),
