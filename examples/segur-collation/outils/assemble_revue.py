@@ -52,7 +52,8 @@ def main():
         if not membres:
             errs.append(f'famille inconnue : {f}')
             continue
-        if fv.get('decision') not in ('garder', 'veto'):
+        # famille N0/N1 : correction proposée, gardée ou écartée ; famille N2 : présentation, laissée
+        if fv.get('decision') not in (('laisser',) if f.startswith('N2') else ('garder', 'veto')):
             errs.append(f'famille {f} : décision « {fv.get("decision")} » invalide')
         if not (fv.get('raison') or '').strip():
             errs.append(f'famille {f} : raison manquante')

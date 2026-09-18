@@ -99,6 +99,10 @@ marqués ★ dans le rapport) dans les témoins. `garder` si l’échantillon es
 l’échantillon est faux pour une raison qui peut toucher les autres (règle qui se trompe, et non
 accident isolé), relis toute la famille et rends des verdicts individuels. Tu peux toujours écarter
 ou modifier un item précis de la famille par un verdict individuel, qui prime.
+Une **famille N2** (écart de présentation que tous les témoins partagent, sans correction proposée :
+par exemple « Mme » de la copie contre « madame » en toutes lettres) se juge de même, avec la
+décision `laisser` pour la famille si l’échantillon ne montre que cet écart ; un item qui cache
+autre chose (un signe, un mot) reçoit un verdict individuel.
 
 **N2-ponct et N2-divergent** (témoins en désaccord entre eux) : verdict bref. Par défaut `laisser`
 (« variante d’édition : ws … / gallica … »), sauf si la leçon de la copie est une faute que la

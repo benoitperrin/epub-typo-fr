@@ -27,6 +27,12 @@ FAMILLES = {'N0': None,  # toutes les règles N0
             'N1': {'accent fautif (deux témoins)', 'apostrophe (deux témoins)', 'accent grammatical',
                    'accent avalé'}}
 FAMILLE_MIN = 8
+# Famille N2 de présentation : la copie abrège une civilité que tous les témoins impriment en toutes
+# lettres (« Mme Blidot » / « madame Blidot »). Aucune correction proposée : même question pour chaque
+# item, jugée une fois sur échantillon (729 : 140 items).
+CIVILITES = {'Mme': 'madame', 'Mlle': 'mademoiselle', 'Mmes': 'mesdames', 'Mlles': 'mesdemoiselles',
+             'M .': 'monsieur', 'MM .': 'messieurs'}
+FAMILLE_CIVILITE = 'N2 · civilité abrégée dans la copie (témoins en toutes lettres)'
 NIVEAU_LIBELLE = {
     'N2': 'deux témoins d’accord, mais pas sur une faute que la règle sait trancher',
     'N2-divergent': 'les témoins divergent entre eux',
@@ -107,6 +113,10 @@ def main():
                 raison = (s.get('correction') or {}).get('raison', '').split(' — ')[0]
                 if lvl in FAMILLES and raison and (FAMILLES[lvl] is None or raison in FAMILLES[lvl]):
                     it['famille'] = f'{lvl} · {raison}'
+                elif lvl == 'N2' and s.get('nous') in CIVILITES:
+                    lec = [x for x in (s.get('temoins') or {}).values() if isinstance(x, str)]
+                    if len(lec) >= 2 and all(x.lower() == CIVILITES[s['nous']] for x in lec):
+                        it['famille'] = FAMILLE_CIVILITE
                 items.append(it)
     familles = {}
     for it in items:
@@ -201,7 +211,8 @@ def main():
         w('## Relecture par familles')
         w('')
         w('Les familles mécaniques de plus de huit items sont jugées sur un échantillon régulier '
-          '(marqué ★ ci-dessous) ; tout item peut encore être écarté.')
+          '(marqué ★ ci-dessous) ; tout item peut encore être écarté. Une famille N2 ne propose aucune '
+          'correction : c’est un écart de présentation, laissé ou tranché une fois pour toute la famille.')
         w('')
         w('| Famille | Items | Échantillon |')
         w('|---|---:|---|')
@@ -248,7 +259,8 @@ def main():
         w('|---|---|---|---|---|---|')
         for it in part:
             ctx = f'…{md(it["avant"][-55:])} ⟦·⟧ {md(it["apres"][:40])}…'
-            w(f'| {it["id"]} | {md(it.get("chap") or "")} | {ctx} | « {md(it["nous"])} » | {lecons(it["temoins"])} | {it.get("classe", "")} |')
+            star = ' ★' if it.get('echantillon') else ''
+            w(f'| {it["id"]}{star} | {md(it.get("chap") or "")} | {ctx} | « {md(it["nous"])} » | {lecons(it["temoins"])} | {it.get("classe", "")} |')
         w('')
 
     # ---- E. ce qu'on laisse
