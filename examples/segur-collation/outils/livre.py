@@ -111,7 +111,16 @@ def main():
         lac_p = f'{W}/collation-2026-09-16/{i}-lacunes.json'
         lac = [l for l in (json.load(open(lac_p)) if os.path.exists(lac_p) else []) if l['confirmee'] and l['nature'] == 'lacune']
         app['lacunes'] = lac
-        if lac:
+        rest = app.get('restitution')
+        if lac and rest:
+            L += ['', '## H. Lacunes de la copie, restituées', '',
+                  f'Passages entiers que tous les témoins portent et que la copie n’avait pas : restitués dans le volume livré '
+                  f'({rest["decision"]}), {rest["passages"]} passage(s), {fmt(rest["mots"])} mots, texte des témoins tracé '
+                  f'paragraphe par paragraphe (sous-page Wikisource, vues Gallica) : `{rest["rapport"]}`. '
+                  'Le volume sans restitution est gardé dans `archives/sans-restitution/`.', '']
+            L += [f'- {md(x)}' for x in rest.get('chapitres') or []]
+            L += ['', '| Après (copie) | Mots restitués | Début du passage | Fin |', '|---|---:|---|---|']
+        elif lac:
             L += ['', '## H. Lacunes de la copie (non restituées)', '',
                   'Passages entiers que tous les témoins portent et que la copie n’a pas. Une restitution de '
                   'paragraphes dépasse l’applicateur (il ne crée pas de balises) : elle est laissée à la décision de '
@@ -183,7 +192,15 @@ def main():
         for k, note in attente.items():
             titre = next(v['titre'] for v, *_ in rows if str(v['id']) == k).replace("'", '’')
             L.append(f'- **{k} *{md(titre)}*** : {note}')
-    lac_all = [(v, l) for v, bil, app, st in faits for l in app.get('lacunes', [])]
+    rest_all = [(v, app['restitution']) for v, bil, app, st in faits if app.get('restitution')]
+    if rest_all:
+        L += ['', '## Lacunes de la copie, restituées', '',
+              'Passages entiers que tous les témoins portent et que la copie avait perdus, rendus à leur place dans le volume '
+              'livré (décision de Benoît du 19/09/2026), chaque paragraphe tracé ; les volumes sans restitution sont gardés '
+              'dans `archives/sans-restitution/`.', '']
+        for v, r in rest_all:
+            L.append(f'- **{v["id"]} *{md(v["titre"].replace(chr(39), "’"))}*** : {r["passages"]} passage(s), {fmt(r["mots"])} mots — `{r["rapport"]}`.')
+    lac_all = [(v, l) for v, bil, app, st in faits if not app.get('restitution') for l in app.get('lacunes', [])]
     if lac_all:
         L += ['', '## Lacunes de la copie, à restituer à la main', '',
               'Passages entiers présents dans tous les témoins et absents de la copie (détail en section H du rapport '
@@ -216,12 +233,14 @@ def main():
             txt = open(lp).read()
             titre = txt.splitlines()[0].lstrip('# ').strip()
             m = re.search(r'\*\*La question\*\* : (.*)', txt)
+            t2 = re.search(r'\*\*Tranché\*\* (.*)', txt)
             props.append(f'- **`propositions/{sd}/`** — {titre}' + ('' if titre[-1:] in '?.!' else '.')
-                         + (f' Question : {m.group(1).strip()}' if m else ''))
+                         + (f' Question : {m.group(1).strip()}' if m else '')
+                         + (f' **Tranché** {t2.group(1).strip()}' if t2 else ''))
     if props:
         L += ['', '## Propositions préparées à part', '',
-              'Ce que la chaîne ne pouvait pas appliquer est préparé dans `propositions/`, sans rien remplacer dans les '
-              'volumes livrés : chaque dossier a son LISEZMOI et sa question.', ''] + props
+              'Ce que la chaîne ne pouvait pas appliquer a été préparé dans `propositions/`, à part ; chaque dossier a son '
+              'LISEZMOI, sa question et, une fois tranchée, la décision.', ''] + props
     L += ['', '## Méthode et outils', '',
           'Dépôt public https://github.com/benoitperrin/epub-typo-fr (commits locaux de septembre 2026, '
           'poussés par Benoît) : `witness_wikisource.py`, `witness_gallica.py`, `collate.py`, '
