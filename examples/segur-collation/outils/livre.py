@@ -208,6 +208,20 @@ def main():
             L.append(f'- **{v["id"]} *{md(v["titre"].replace("'", "’"))}*, {iid}** : {md(q)}' + (f' ({md(tem)})' if tem else ''))
     else:
         L.append('Aucune pour les volumes livrés.')
+    # propositions préparées à part (restitutions, abrégé, passe Gallica seul) : une question chacune
+    props = []
+    for sd in sorted(os.listdir(f'{OUT}/propositions')) if os.path.isdir(f'{OUT}/propositions') else []:
+        lp = f'{OUT}/propositions/{sd}/LISEZMOI.md'
+        if os.path.exists(lp):
+            txt = open(lp).read()
+            titre = txt.splitlines()[0].lstrip('# ').strip()
+            m = re.search(r'\*\*La question\*\* : (.*)', txt)
+            props.append(f'- **`propositions/{sd}/`** — {titre}' + ('' if titre[-1:] in '?.!' else '.')
+                         + (f' Question : {m.group(1).strip()}' if m else ''))
+    if props:
+        L += ['', '## Propositions préparées à part', '',
+              'Ce que la chaîne ne pouvait pas appliquer est préparé dans `propositions/`, sans rien remplacer dans les '
+              'volumes livrés : chaque dossier a son LISEZMOI et sa question.', ''] + props
     L += ['', '## Méthode et outils', '',
           'Dépôt public https://github.com/benoitperrin/epub-typo-fr (commits locaux de septembre 2026, '
           'poussés par Benoît) : `witness_wikisource.py`, `witness_gallica.py`, `collate.py`, '
