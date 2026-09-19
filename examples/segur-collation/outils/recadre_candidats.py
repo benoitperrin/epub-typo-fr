@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """recadre_candidats.py 720 726 727 : pour chaque candidat de la passe Gallica seul, découpe dans
 l'image Gallica (IIIF) la ligne ALTO qui porte la leçon (et une ligne autour) ; une requête toutes
-les 5 s, reprise sans refaire ce qui est là. Images : $SEGUR_WORKDIR/crops/<id>/<n>.jpg"""
+les 5 s, reprise sans refaire ce qui est là. Images : $SEGUR_WORKDIR/crops/<id><suffixe>/<n>.jpg
+(--suffixe=-v2 : nouveau dossier, la ligne située par le contexte et non par la leçon seule)."""
 import sys, os, re, json, html, subprocess, time
 import chemins
 sys.path.insert(0, chemins.TOOLS)
@@ -24,25 +25,44 @@ def lignes(ark, vue):
     return out
 
 
-for vol in sys.argv[1:]:
+def mots(x):
+    return [collate.key(t[0]) for t in collate.tokenize_text(x or '') if t[1] == 'w']
+
+
+def ligne_du_candidat(L, c):
+    """Ligne de la page qui porte la leçon : on cherche la suite « fin du contexte + leçon (+ début de
+    la suite) » dans les mots de la page, de la plus longue à la plus courte ; la leçon seule (un
+    mot court comme « à ») ne suffit jamais à situer la ligne."""
+    page = [(k, i) for i, l in enumerate(L) for k in mots(l[4])]
+    keys = [k for k, _ in page]
+    av, g, ap = mots(c['avant']), mots(c['gallica']), mots(c['apres'])
+    essais = [(av[-3:], g, ap[:1]), (av[-3:], g, []), (av[-2:], g, ap[:2]), (av[-2:], g, []),
+              ([], g, ap[:3]), (av[-4:], [], []), (av[-3:], [], []), ([], [], ap[:4])]
+    for a, b, c_ in essais:
+        seq = a + b + c_
+        if len(seq) < 3:
+            continue
+        for x in range(len(keys) - len(seq) + 1):
+            if keys[x:x + len(seq)] == seq:
+                return page[x + len(a)][1] if b else page[min(x + len(seq) - 1, len(page) - 1)][1]
+    return None
+
+
+suffixe = ''
+args = sys.argv[1:]
+if args and args[0].startswith('--suffixe='):
+    suffixe, args = args[0].split('=', 1)[1], args[1:]
+for vol in args:
     d = json.load(open(f'{chemins.OUT}/propositions/gallica-seul/{vol}-candidats.json'))
     ark = d['ark']
-    os.makedirs(f'{chemins.W}/crops/{vol}', exist_ok=True)
+    dossier = f'{chemins.W}/crops/{vol}{suffixe}'
+    os.makedirs(dossier, exist_ok=True)
     for c in d['candidats']:
-        out = f'{chemins.W}/crops/{vol}/{c["n"]}.jpg'
+        out = f'{dossier}/{c["n"]}.jpg'
         if os.path.exists(out) or not c.get('vue'):
             continue
         L = lignes(ark, c['vue'])
-        ctx = [w for w in re.findall(r"[^\W\d_]+(?:['’][^\W\d_]+)*", c['avant'])][-2:]
-        cibles = [collate.key(c['gallica'].strip())] if c['gallica'].strip() else []
-        cibles.append(collate.key(' '.join(ctx)))
-        k = None
-        for cible in cibles:
-            k = next((i for i, l in enumerate(L) if cible and cible in l[4]), None)
-            if k is not None:
-                break
-        if k is None and ctx:
-            k = next((i for i, l in enumerate(L) if collate.key(ctx[-1]) in l[4]), None)
+        k = ligne_du_candidat(L, c)
         if k is None:
             print(vol, c['n'], 'ligne introuvable', flush=True)
             continue
@@ -56,8 +76,6 @@ for vol in sys.argv[1:]:
             os.replace(out + '.tmp', out)
         else:
             print(vol, c['n'], 'HTTP', r.stdout, flush=True)
-            if os.path.exists(out + '.tmp'):
-                os.remove(out + '.tmp')
             if r.stdout == '429':
                 time.sleep(60)
         time.sleep(5)

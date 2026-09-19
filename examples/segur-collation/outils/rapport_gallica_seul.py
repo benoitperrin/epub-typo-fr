@@ -6,7 +6,7 @@ rejouables par ocr_apply si Benoît les adopte (<id>-corrections-proposees.jsonl
 
 Usage : python3 rapport_gallica_seul.py 720 726 727
 """
-import sys, os, json, re
+import sys, os, json, re, subprocess, tempfile
 from collections import Counter
 import chemins
 
@@ -71,11 +71,36 @@ def main():
                     props.append({**cc, 'raison': f'passe Gallica seul, candidat {x["n"]} (vue {x["vue"]}) — {v.get("raison", "")}',
                                   'source': 'passe contre Gallica seul — proposée, non appliquée', 'item': f'G-{x["n"]:03d}'})
                 L.append(f'| {x["n"]} | {vl} | …{md(x["avant"][-45:])} | {md(x["copie"]) or "∅"} | {md(tx(x["gallica"])) or "∅"} | {rs} |')
+        hp = f'{OUT}/{i}-hors-candidats.json'
+        if os.path.exists(hp):          # fautes vues par le relecteur hors des candidats, reprises à part
+            h = json.load(open(hp))
+            L += ['', f'### Hors candidats ({len(h["verdicts"])})', '', h.get('origine', ''), '']
+            for v in h['verdicts']:
+                cc = v['correction']
+                L.append(f'- {v["n"]} : {md(v["raison"])} — « {md(cc["chercher"])} » → « {md(cc["remplacer"])} »')
+                props.append({**cc, 'raison': f'passe Gallica seul, hors candidats {v["n"]} — {v["raison"]}',
+                              'source': 'passe contre Gallica seul — proposée, non appliquée', 'item': f'G-{v["n"]}'})
         if r.get('remarques'):
             L += ['', '## Remarques de relecture', ''] + [f'- {md(m)}' for m in r['remarques']]
-        ecrit(f'{OUT}/{i}-rapport.md', '\n'.join(L) + '\n')
         ecrit(f'{OUT}/{i}-corrections-proposees.jsonl', ''.join(json.dumps(p, ensure_ascii=False) + '\n' for p in props))
-        print(i, dict(cnt), len(props), 'corrections proposées')
+        # essai sur le volume livré (qui a déjà reçu la collation) : ce qui s'appliquerait tel quel
+        T = {str(v['id']): v for v in json.load(open(f'{chemins.TOOLS}/examples/segur-collation/temoins-segur.json'))['volumes']}
+        livre = f'{W}/sortie/Comtesse-de-Segur-{T[i]["slug"]}.epub'
+        essai = ''
+        if props and os.path.exists(livre):
+            with tempfile.TemporaryDirectory() as tmp:
+                r = subprocess.run([sys.executable, f'{chemins.TOOLS}/ocr_apply.py', livre, f'{tmp}/x.epub',
+                                    f'{OUT}/{i}-corrections-proposees.jsonl', '--budget-pct', '1.5', '--max-edit', '16',
+                                    '--insertion-max', '250', '--report', f'{tmp}/r.md'], capture_output=True, text=True)
+                rep = open(f'{tmp}/r.md').read() if os.path.exists(f'{tmp}/r.md') else ''
+            essai = (r.stdout.strip().splitlines() or ['?'])[0]
+            rej = [l for l in rep.split('## Rejetées', 1)[1].splitlines() if l.startswith('- ')] if '## Rejetées' in rep else []
+            L += ['', '## Essai sur le volume livré', '',
+                  f'Essai d’application (sans rien écrire) des {len(props)} corrections proposées sur l’EPUB livré, qui a déjà reçu la '
+                  f'collation : {essai}.' + (' Refusées (le passage a changé à la collation, ou recoupe une correction faite) :' if rej else '')]
+            L += [f'- {md(x[2:])}' for x in rej]
+        ecrit(f'{OUT}/{i}-rapport.md', '\n'.join(L) + '\n')
+        print(i, dict(cnt), len(props), 'corrections proposées ;', essai)
 
 
 if __name__ == '__main__':
