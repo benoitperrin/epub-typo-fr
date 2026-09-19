@@ -164,12 +164,12 @@ def main():
     for v, bil, app, st in rows:
         if not bil:
             etat = 'suspendu, voir plus bas' if str(v['id']) in attente else 'en attente'
-            L.append(f'| {v["id"]} *{md(v["titre"])}* | {etat} | | | | | |')
+            L.append(f'| {v["id"]} *{md(v["titre"].replace("'", "’"))}* | {etat} | | | | | |')
             continue
         tem = ', '.join(st['temoins'])
         conf = bil['juin_confirmees_temoins'] + bil['juin_confirmees_relecture']
         rel = f' (dont {bil["juin_confirmees_relecture"]} à la relecture)' if bil['juin_confirmees_relecture'] else ''
-        L.append(f'| {v["id"]} *{md(v["titre"])}* | {tem} | {conf} / {bil["juin_total"]}{rel} | {bil["juin_infirmees"]} | '
+        L.append(f'| {v["id"]} *{md(v["titre"].replace("'", "’"))}* | {tem} | {conf} / {bil["juin_total"]}{rel} | {bil["juin_infirmees"]} | '
                  f'{app["nouvelles"]} | {bil["n2_ouverts"]} | {app.get("epubcheck_apres", {}).get("erreurs")} erreur |')
     if faits:
         tot = Counter()
@@ -181,7 +181,7 @@ def main():
     if attente:
         L += ['', '## Volumes suspendus', '']
         for k, note in attente.items():
-            titre = next(v['titre'] for v, *_ in rows if str(v['id']) == k)
+            titre = next(v['titre'] for v, *_ in rows if str(v['id']) == k).replace("'", '’')
             L.append(f'- **{k} *{md(titre)}*** : {note}')
     lac_all = [(v, l) for v, bil, app, st in faits for l in app.get('lacunes', [])]
     if lac_all:
@@ -189,7 +189,7 @@ def main():
               'Passages entiers présents dans tous les témoins et absents de la copie (détail en section H du rapport '
               'du volume). Ils ne sont pas restitués : l’applicateur ne crée pas de paragraphes.', '']
         for v, l in lac_all:
-            L.append(f'- **{v["id"]} *{md(v["titre"])}*** : {fmt(l["temoin_mots"])} mots après « …{md(jetons(l["copie_avant"])[-50:])} » '
+            L.append(f'- **{v["id"]} *{md(v["titre"].replace("'", "’"))}*** : {fmt(l["temoin_mots"])} mots après « …{md(jetons(l["copie_avant"])[-50:])} » '
                      f'(commence par « {md(jetons(l["temoin_debut"])[:70])}… »).')
     L += ['', '« Confirmées » : corrections de juin que les témoins portent, ou que la relecture a maintenues '
           'contre un témoin fautif. « Infirmées » : corrections de juin défaites ou remplacées. « Nouvelles » : '
@@ -205,7 +205,7 @@ def main():
           '## Questions ouvertes', '']
     if questions:
         for v, iid, q, tem in questions:
-            L.append(f'- **{v["id"]} *{md(v["titre"])}*, {iid}** : {md(q)}' + (f' ({md(tem)})' if tem else ''))
+            L.append(f'- **{v["id"]} *{md(v["titre"].replace("'", "’"))}*, {iid}** : {md(q)}' + (f' ({md(tem)})' if tem else ''))
     else:
         L.append('Aucune pour les volumes livrés.')
     L += ['', '## Méthode et outils', '',
