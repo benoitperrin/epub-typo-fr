@@ -433,6 +433,46 @@
    "source_md5": "9cfe6c9fb4183e760a4fc082650c425f",
    "epub_md5": "67326a4b68da4f0acfd514282797071b",
    "epubcheck_erreurs": 0
+  },
+  {
+   "id": 730,
+   "titre": "François le Bossu",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1901)",
+     "couverture": 0.997
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1879 (7e édition))",
+     "couverture": 1.0
+    }
+   },
+   "juin": {
+    "total": 131,
+    "confirmees_par_les_temoins": 127,
+    "confirmees_a_la_relecture": 1,
+    "infirmees": 3
+   },
+   "corrections_nouvelles_appliquees": 457,
+   "entrees_ocr_apply": 410,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_autre": 3,
+    "J_garder": 1,
+    "N0_garder": 208,
+    "N0_veto": 30,
+    "N0_modifier": 4,
+    "N1_garder": 154,
+    "N1_modifier": 4,
+    "N2_corriger": 71,
+    "N2_laisser": 65,
+    "L_corriger": 2,
+    "E_corriger": 14
+   },
+   "source_md5": "d0600c1f2916de4f709cded906297685",
+   "epub_md5": "5b68d7a348202a4ef5d93eeed3f690ee",
+   "epubcheck_erreurs": 0
   }
  ]
 }
