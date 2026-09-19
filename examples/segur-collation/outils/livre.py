@@ -50,6 +50,19 @@ def main():
         base = f'Comtesse-de-Segur-{slug}'
         bil_p, app_p = f'{W}/revue/{i}-bilan.json', f'{W}/sortie/application/{i}.json'
         st_p = f'{W}/collation-2026-09-16/{i}-stats.json'
+        if os.path.exists(app_p) and json.load(open(app_p)).get('recomposition'):
+            # volume recomposé depuis le témoin complet (721) : pas de relecture d'items, un rapport de recomposition
+            app = json.load(open(app_p))
+            rc = app['recomposition']
+            for src, dst in ((f'{W}/sortie/{base}.epub', f'{OUT}/epub/{base}.epub'),
+                             (f'{W}/sortie/{base}.kepub.epub', f'{OUT}/kepub/{base}.kepub.epub'),
+                             (f'{OUT}/{rc["rapport"]}', f'{OUT}/rapports/{i}-{slug}.md')):
+                if os.path.exists(src):
+                    shutil.copy(src, dst)
+            rows.append((v, 'recomposition', app, None))
+            provenance.append({'id': v['id'], 'titre': v['titre'], 'recomposition': rc, 'epub_md5': app.get('epub_md5'),
+                               'epubcheck_erreurs': app.get('epubcheck_apres', {}).get('erreurs')})
+            continue
         if not (os.path.exists(bil_p) and os.path.exists(app_p) and os.path.exists(st_p)):
             rows.append((v, None, None, None))
             continue
@@ -158,9 +171,11 @@ def main():
 
     # ---- LISEZMOI
     now = datetime.datetime.now().strftime('%d/%m/%Y à %H h %M')
-    faits = [r for r in rows if r[1]]
+    faits = [r for r in rows if r[1] and r[1] != 'recomposition']
+    recomp = [r for r in rows if r[1] == 'recomposition']
     L = ['# Collation des romans de la comtesse de Ségur contre témoins', '',
-         f'Mise à jour : {now}. {len(faits)} volume(s) sur 13 collationné(s), relu(s) et corrigé(s).', '',
+         f'Mise à jour : {now}. {len(faits)} volume(s) sur 13 collationné(s), relu(s) et corrigé(s)'
+         + (f' ; {len(recomp)} recomposé(s) depuis le témoin complet, la copie étant un abrégé' if recomp else '') + '.', '',
          'Les 13 romans restaurés en juin 2026 avaient été corrigés sans témoin. Chaque volume est ici '
          'aligné mot à mot sur des témoins indépendants : la transcription Wikisource (relue par des '
          'humains) et l’OCR d’une édition Hachette ancienne sur Gallica, ou sur Internet Archive quand '
@@ -171,6 +186,12 @@ def main():
          '|---|---|---:|---:|---:|---:|---|']
     attente = json.load(open(f'{W}/outils/attente.json')) if os.path.exists(f'{W}/outils/attente.json') else {}
     for v, bil, app, st in rows:
+        if bil == 'recomposition':
+            rc = app['recomposition']
+            L.append(f'| {v["id"]} *{md(v["titre"].replace(chr(39), "’"))}* | recomposé depuis ws (1884), contrôlé sur gallica (1861) : '
+                     f'{rc["chapitres"]} chapitres, {fmt(rc["mots"])} mots | — | — | texte neuf | 0 | '
+                     f'{app.get("epubcheck_apres", {}).get("erreurs")} erreur |')
+            continue
         if not bil:
             etat = 'suspendu, voir plus bas' if str(v['id']) in attente else 'en attente'
             L.append(f'| {v["id"]} *{md(v["titre"].replace("'", "’"))}* | {etat} | | | | | |')
@@ -261,7 +282,9 @@ def main():
     by = {p['id']: p for p in provenance}
     for m in man:
         p = by.get(m['id'])
-        if p:
+        if p and p.get('recomposition'):
+            m['collation_2026_09'] = {k: p[k] for k in ('recomposition', 'epub_md5', 'epubcheck_erreurs')}
+        elif p:
             m['collation_2026_09'] = {k: p[k] for k in ('juin', 'corrections_nouvelles_appliquees', 'n2_ouverts',
                                                          'epub_md5', 'epubcheck_erreurs')}
     json.dump(man, open(man_p, 'w'), ensure_ascii=False, indent=1)

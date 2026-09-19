@@ -24,6 +24,8 @@ Pour ce que la chaîne ne peut pas appliquer, des propositions à part, qui ne t
 | `recadre_candidats.py` | découpe, dans l'image Gallica (IIIF), la ligne ALTO de chaque candidat, pour juger sur la page imprimée |
 | `PROTOCOLE-gallica-seul.md` | la consigne du relecteur de cette passe (faute, variante, OCR, douteux) |
 | `rapport_gallica_seul.py` | rapport de la passe et corrections proposées, rejouables, non appliquées |
+| `integre_arbitrages.py`, `installe_restitution.py` | une fois les propositions tranchées : les corrections adoptées rejoignent la chaîne en compléments tracés, l’EPUB restitué devient le volume livré |
+| `recompose.py`, `rapport_recompose.py` | quand la copie n’est pas récupérable (abrégé) : texte recomposé depuis le témoin complet, contrôlé mot à mot sur l’autre, dans l’enveloppe de la copie (lettrines, notes, locuteurs, titres), puis livré avec son rapport |
 
 Piège : les ALTO de Gallica se déclarent ISO-8859-1 mais sont en UTF-8 ; lus en Latin-1, les mots accentués perdent leur confiance.
 
