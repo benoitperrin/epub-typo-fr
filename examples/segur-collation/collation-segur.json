@@ -353,6 +353,44 @@
    "source_md5": "a1c415d42a6bceded62b9412eb30c2e8",
    "epub_md5": "37b41e9170af47bda2eba85bccc6eccb",
    "epubcheck_erreurs": 0
+  },
+  {
+   "id": 728,
+   "titre": "Jean qui grogne et Jean qui rit",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Hachette 1895)",
+     "couverture": 0.9959
+    },
+    "gallica": {
+     "edition": "Gallica (L. Hachette, Paris, 1866)",
+     "couverture": 1.0
+    }
+   },
+   "juin": {
+    "total": 81,
+    "confirmees_par_les_temoins": 71,
+    "confirmees_a_la_relecture": 8,
+    "infirmees": 2
+   },
+   "corrections_nouvelles_appliquees": 59,
+   "entrees_ocr_apply": 60,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_garder": 9,
+    "J_autre": 1,
+    "N0_veto": 1,
+    "N0_garder": 15,
+    "N1_garder": 8,
+    "N2_corriger": 16,
+    "N2_laisser": 17,
+    "L_corriger": 4,
+    "E_corriger": 16
+   },
+   "source_md5": "372a31c9cc39b3be5e0314bd9d965df9",
+   "epub_md5": "345e0164bedf584d2b24cda139f83ab6",
+   "epubcheck_erreurs": 0
   }
  ]
 }
