@@ -81,7 +81,18 @@
   "ec_err": 0,
   "apos_d": 0,
   "apos_c": 2422,
-  "chars": 251986
+  "chars": 251986,
+  "collation_2026_09": {
+   "recomposition": {
+    "decision": "Benoît, 19/09/2026 : « Repartir de Wikisource »",
+    "rapport": "propositions/721-abrege/721-recompose.md",
+    "chapitres": 14,
+    "mots": 61283,
+    "variantes_1861_1884": 219
+   },
+   "epub_md5": "eb25c7b1d70d080b5d9c5e67c2ea89ab",
+   "epubcheck_erreurs": 0
+  }
  },
  {
   "id": 722,
