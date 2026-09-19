@@ -177,7 +177,7 @@ def main():
             tot['conf'] += bil['juin_confirmees_temoins'] + bil['juin_confirmees_relecture']
             tot['juin'] += bil['juin_total']; tot['inf'] += bil['juin_infirmees']
             tot['new'] += app['nouvelles']; tot['open'] += bil['n2_ouverts']
-        L.append(f'| **Total** | | **{tot["conf"]} / {tot["juin"]}** | **{tot["inf"]}** | **{tot["new"]}** | **{tot["open"]}** | |')
+        L.append(f'| **Total** | | **{fmt(tot["conf"])} / {fmt(tot["juin"])}** | **{fmt(tot["inf"])}** | **{fmt(tot["new"])}** | **{tot["open"]}** | |')
     if attente:
         L += ['', '## Volumes suspendus', '']
         for k, note in attente.items():
