@@ -391,6 +391,48 @@
    "source_md5": "372a31c9cc39b3be5e0314bd9d965df9",
    "epub_md5": "345e0164bedf584d2b24cda139f83ab6",
    "epubcheck_erreurs": 0
+  },
+  {
+   "id": 729,
+   "titre": "L'auberge de l'ange gardien",
+   "temoins": {
+    "ws": {
+     "edition": "Wikisource (Librairie Hachette et Cie 1888)",
+     "couverture": 0.9978
+    },
+    "gallica": {
+     "edition": "Gallica (Hachette, Paris, 1876 (9e édition))",
+     "couverture": 0.9999
+    }
+   },
+   "juin": {
+    "total": 111,
+    "confirmees_par_les_temoins": 105,
+    "confirmees_a_la_relecture": 2,
+    "infirmees": 4
+   },
+   "corrections_nouvelles_appliquees": 690,
+   "entrees_ocr_apply": 562,
+   "corrections_rejetees_par_l_applicateur": 0,
+   "n2_ouverts": 0,
+   "decisions": {
+    "J_autre": 4,
+    "J_garder": 2,
+    "N0_garder": 477,
+    "N0_modifier": 14,
+    "N0_veto": 6,
+    "N1_garder": 106,
+    "N1_veto": 8,
+    "N1_modifier": 4,
+    "N2_laisser": 217,
+    "N2_corriger": 71,
+    "L_corriger": 3,
+    "L_laisser": 25,
+    "E_corriger": 15
+   },
+   "source_md5": "9cfe6c9fb4183e760a4fc082650c425f",
+   "epub_md5": "67326a4b68da4f0acfd514282797071b",
+   "epubcheck_erreurs": 0
   }
  ]
 }
